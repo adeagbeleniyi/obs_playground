@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Layout from "@/components/Layout";
 import {
-  Bot, Trash2, Loader2, LogIn, Plus, MessageSquare, Clock,
+  Bot, Trash2, Loader2, Plus, MessageSquare, Clock,
   Train, AlertTriangle, Activity, MapPin, ChevronRight, X,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -257,27 +256,7 @@ export default function AIAssistant() {
     );
   }
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-        <div className="w-14 h-14 rounded-full bg-[#D22630]/10 flex items-center justify-center">
-          <Bot size={28} className="text-[#D22630]" />
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground mb-1">OT Intelligence Assistant</h2>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            Sign in to ask questions about the CN Rail network — car readings, subdivision traffic, fleet-wide alarms, crew status, and more.
-          </p>
-        </div>
-        <a href={getLoginUrl()}>
-          <Button className="gap-2 bg-[#D22630] hover:bg-[#b01e28] text-white">
-            <LogIn size={16} />
-            Sign In to Continue
-          </Button>
-        </a>
-      </div>
-    );
-  }
+  // No auth gate — AI Assistant is available to all users
 
   const sessions = sessionsQuery.data ?? [];
 
