@@ -1,10 +1,11 @@
 import { useState, useCallback } from "react";
 import Layout from "@/components/Layout";
 import {
-  Eye, Plus, Trash2, ToggleLeft, ToggleRight, ChevronDown,
+  Eye, Plus, Trash2, ToggleLeft, ToggleRight, ChevronDown, ChevronRight,
   AlertTriangle, Info, CheckCircle, Loader2, X, Edit3, Save,
-  GitBranch, Mail, MailCheck, Bell,
+  GitBranch, Mail, MailCheck, Bell, Activity, MapPin, Clock,
 } from "lucide-react";
+import { evaluateRule, lastMatchedAt, type MatchResult } from "@/lib/ruleEvaluator";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -265,14 +266,84 @@ function RuleBuilder({ value, onChange }: { value: RuleDefinition; onChange: (v:
 }
 
 // ─── Watch Rule Card ──────────────────────────────────────────────────────────
+// ─── Severity colours ────────────────────────────────────────────────────────
+const SEVERITY_STYLES: Record<string, { row: string; badge: string; dot: string }> = {
+  alarm:    { row: "border-l-2 border-l-red-500 bg-red-500/5",    badge: "bg-red-500/15 text-red-400 border-red-500/30",    dot: "bg-red-500" },
+  alert:    { row: "border-l-2 border-l-amber-500 bg-amber-500/5", badge: "bg-amber-500/15 text-amber-400 border-amber-500/30", dot: "bg-amber-500" },
+  elevated: { row: "border-l-2 border-l-yellow-500 bg-yellow-500/5",badge: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",dot: "bg-yellow-500" },
+  watch:    { row: "border-l-2 border-l-blue-500/40 bg-blue-500/5", badge: "bg-blue-500/15 text-blue-400 border-blue-500/30",  dot: "bg-blue-400" },
+};
+
+function MatchesPanel({ matches }: { matches: MatchResult[] }) {
+  if (matches.length === 0) {
+    return (
+      <div className="mt-3 pt-3 border-t border-border/50">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground py-3 justify-center">
+          <CheckCircle size={13} className="text-emerald-400" />
+          No assets currently match this rule
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50">
+      <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+        <Activity size={10} />
+        Current Matches — {matches.length} asset{matches.length !== 1 ? "s" : ""}
+      </div>
+      <div className="space-y-1.5">
+        {matches.map((m, i) => {
+          const sty = SEVERITY_STYLES[m.severity] ?? SEVERITY_STYLES.watch;
+          return (
+            <div key={i} className={`rounded px-3 py-2 flex items-center justify-between gap-3 ${sty.row}`}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sty.dot}`} />
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-foreground truncate">{m.label}</div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {m.subdivision && (
+                      <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                        <MapPin size={9} />{m.subdivision}{m.location ? ` · ${m.location}` : ""}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                      <Clock size={9} />{m.timestamp.toLocaleString("en-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs font-mono font-semibold text-foreground">
+                  {m.value.toLocaleString()}{m.unit ? ` ${m.unit}` : ""}
+                </span>
+                <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border ${sty.badge}`}>
+                  {m.severity.toUpperCase()}
+                </Badge>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function WatchRuleCard({ rule, onToggle, onDelete }: {
   rule: (typeof SEED_WATCH_RULES)[0];
   onToggle: (id: number, active: boolean) => void;
   onDelete: (id: number) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
   const def = parseCondition(rule.condition);
   const typeColor = WATCH_TYPE_COLORS[rule.watchType] ?? "bg-muted text-muted-foreground border-border";
+
+  // Evaluate rule against simulated fleet data
+  const matches: MatchResult[] = def ? evaluateRule(def) : [];
+  const matchCount = matches.length;
+  const lastMatch = lastMatchedAt(matches);
+  const hasAlarm = matches.some(m => m.severity === "alarm");
+  const hasAlert = matches.some(m => m.severity === "alert");
 
   return (
     <div className={`rounded border transition-all ${rule.active ? "border-border bg-card" : "border-border/50 bg-muted/20 opacity-70"}`}>
@@ -300,14 +371,38 @@ function WatchRuleCard({ rule, onToggle, onDelete }: {
                   <span className="text-[11px] text-muted-foreground font-mono truncate">{humaniseRule(def)}</span>
                 </div>
               )}
-              {rule.lastTriggeredAt && (
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-amber-400">
-                  <Bell size={9} />Last triggered: {new Date(rule.lastTriggeredAt).toLocaleString("en-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </div>
-              )}
+              {/* Match count badge */}
+              <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                {matchCount > 0 ? (
+                  <button
+                    onClick={() => setShowMatches(v => !v)}
+                    className={`flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded border transition-colors ${
+                      hasAlarm ? "bg-red-500/15 text-red-400 border-red-500/30 hover:bg-red-500/25" :
+                      hasAlert ? "bg-amber-500/15 text-amber-400 border-amber-500/30 hover:bg-amber-500/25" :
+                      "bg-blue-500/15 text-blue-400 border-blue-500/30 hover:bg-blue-500/25"
+                    }`}
+                  >
+                    <Activity size={9} />
+                    {matchCount} match{matchCount !== 1 ? "es" : ""}
+                    {showMatches ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] text-emerald-400">
+                    <CheckCircle size={9} />No current matches
+                  </span>
+                )}
+                {lastMatch && (
+                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <Clock size={9} />Last matched: {lastMatch.toLocaleString("en-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button onClick={() => setShowMatches(v => !v)} className={`p-1.5 rounded hover:bg-accent transition-colors ${showMatches ? "text-blue-400" : "text-muted-foreground hover:text-foreground"}`} title="View matches">
+              <Activity size={13} />
+            </button>
             <button onClick={() => setExpanded(v => !v)} className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="View conditions">
               <GitBranch size={13} />
             </button>
@@ -319,6 +414,8 @@ function WatchRuleCard({ rule, onToggle, onDelete }: {
             </button>
           </div>
         </div>
+
+        {showMatches && def && <MatchesPanel matches={matches} />}
 
         {expanded && def && (
           <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
