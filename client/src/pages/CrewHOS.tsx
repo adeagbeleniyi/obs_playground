@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Layout from '@/components/Layout';
 import {
   activeCrew, getHOSSummary, formatHOSRemaining,
   hosStatusColor, hosStatusBg, type ActiveCrew, type HOSStatus
@@ -185,6 +186,7 @@ export default function CrewHOS() {
   const filtered = filter === 'ALL' ? sorted : sorted.filter(c => c.hosStatus === filter);
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
@@ -265,5 +267,6 @@ export default function CrewHOS() {
         </div>
       </div>
     </div>
+    </Layout>
   );
 }

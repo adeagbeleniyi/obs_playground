@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Layout from "@/components/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -337,6 +338,7 @@ export default function WMSObservability() {
   const degradedModems = CELL_MODEMS.filter((m) => m.status === "DEGRADED").length;
 
   return (
+    <Layout>
     <div className="min-h-screen bg-background text-foreground p-6">
       {/* Header */}
       <div className="mb-6">
@@ -733,5 +735,6 @@ export default function WMSObservability() {
         </TabsContent>
       </Tabs>
     </div>
+    </Layout>
   );
 }

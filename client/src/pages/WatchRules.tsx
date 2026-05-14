@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import Layout from "@/components/Layout";
 import {
   Eye, Plus, Trash2, ToggleLeft, ToggleRight, ChevronDown,
   AlertTriangle, Info, CheckCircle, Loader2, X, Edit3, Save,
@@ -471,6 +472,7 @@ export default function WatchRules() {
   if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-muted-foreground" size={24} /></div>;
 
   return (
+    <Layout>
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border">
         <div className="flex items-center justify-between">
@@ -545,5 +547,6 @@ export default function WatchRules() {
         )}
       </div>
     </div>
+    </Layout>
   );
 }

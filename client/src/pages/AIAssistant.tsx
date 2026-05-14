@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import Layout from "@/components/Layout";
 import {
   Bot, Trash2, Loader2, LogIn, Plus, MessageSquare, Clock,
   Train, AlertTriangle, Activity, MapPin, ChevronRight, X,
@@ -190,7 +191,7 @@ export default function AIAssistant() {
 
   const chatMutation = trpc.ai.chat.useMutation({
     onSuccess: (data) => {
-      setMessages(prev => [...prev, { role: "assistant", content: data.reply }]);
+      setMessages(prev => [...prev, { role: "assistant" as const, content: data.reply as string }]);
       utils.ai.listSessions.invalidate();
     },
     onError: (err) => {
@@ -281,6 +282,7 @@ export default function AIAssistant() {
   const sessions = sessionsQuery.data ?? [];
 
   return (
+    <Layout>
     <div className="flex h-full overflow-hidden">
 
       {/* ── Left: Session Sidebar ─────────────────────────────────────────── */}
@@ -417,5 +419,6 @@ export default function AIAssistant() {
         <FleetContextPanel />
       </div>
     </div>
+    </Layout>
   );
 }
