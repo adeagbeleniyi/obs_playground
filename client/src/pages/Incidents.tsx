@@ -2,11 +2,13 @@ import Layout from "@/components/Layout";
 import { incidents } from "@/lib/mockData";
 import { rootCauseExplanations, type RootCauseExplanation } from "@/lib/observabilityData";
 import { waysideIncidents, type WaysideIncident } from "@/lib/waysideIncidents";
+import { carDatabase } from "@/lib/crewCarData";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
   Bot, X, ChevronRight, Layers, GitBranch, Lightbulb,
-  Zap, Users, FileText, ExternalLink, Clock, Radio, AlertTriangle, Train
+  Zap, Users, FileText, ExternalLink, Clock, Radio, AlertTriangle, Train,
+  Gauge, ShieldAlert, Wrench, ClipboardList
 } from "lucide-react";
 
 const statusBadge: Record<string, string> = {
@@ -32,6 +34,257 @@ const relevanceColor: Record<string, string> = {
   contributing: "text-amber-400",
   context:      "text-muted-foreground",
 };
+
+// ─── AAR Rule lookup helpers ─────────────────────────────────────────────────
+function getAARRule(inc: WaysideIncident): { rule: string; threshold: string; violated: string; authority: string } {
+  const r = inc.reading.toLowerCase();
+  if (inc.detectorType === 'WILD') {
+    const kips = parseFloat(r.match(/(\d+\.?\d*)\s*kip/i)?.[1] || '0');
+    if (kips >= 90) return { rule: 'Rule 41 — ALARM', threshold: '≥ 90 kips', violated: `${kips} kips detected — immediate stop required`, authority: 'AAR S-4200 / Rule 41' };
+    if (kips >= 65) return { rule: 'Rule 41 — ALERT', threshold: '65–89 kips', violated: `${kips} kips detected — set out at next yard`, authority: 'AAR S-4200 / Rule 41' };
+    return { rule: 'Rule 41 — ELEVATED', threshold: '50–64 kips', violated: `${kips} kips detected — owner notification required`, authority: 'AAR S-4200 / Rule 41' };
+  }
+  if (inc.detectorType === 'HBD') {
+    if (r.includes('wm51') || r.includes('§4.1')) return { rule: 'S-6001 WM51 Mandatory Set-Out', threshold: 'Kt/Ke ratio or 3-pass rolling window', violated: inc.reading, authority: 'AAR S-6001 §4.1' };
+    if (r.includes('wm52') || r.includes('§4.2')) return { rule: 'S-6001 WM52 Alert', threshold: 'Kt ≥ 2.0 with Ke < Kt', violated: inc.reading, authority: 'AAR S-6001 §4.2' };
+    return { rule: 'S-6001 HBD Temperature Alarm', threshold: 'Bearing temp > ambient threshold', violated: inc.reading, authority: 'AAR S-6001' };
+  }
+  if (inc.detectorType === 'DED') {
+    if (r.includes('level 2') || r.includes('lvl 2')) return { rule: 'DED Level 2 — Immediate Stop', threshold: 'Severe dragging contact', violated: inc.reading, authority: 'AAR S-4200 DED §3.2' };
+    return { rule: 'DED Level 1 — Speed Restriction', threshold: 'Dragging equipment contact', violated: inc.reading, authority: 'AAR S-4200 DED §3.1' };
+  }
+  if (inc.detectorType === 'TADS') return { rule: 'S-6000 ABD/TADS Defect Rank', threshold: 'Rank ≥ 3 (S-6000 Level-1 criteria)', violated: inc.reading, authority: 'AAR S-6000 §5' };
+  if (inc.detectorType === 'WIM') return { rule: 'WIM Overweight', threshold: '33-ton single axle / 263,000 lb gross', violated: inc.reading, authority: 'AAR S-4200 WIM §2' };
+  return { rule: 'Wayside Detector Alarm', threshold: 'Detector threshold exceeded', violated: inc.reading, authority: 'AAR S-4200' };
+}
+
+function getMandatoryAction(inc: WaysideIncident): { action: string; urgency: string; color: string } {
+  if (inc.status === 'ALARM') {
+    if (inc.detectorType === 'WILD') return { action: 'IMMEDIATE STOP — Do not move car. Contact Mechanical immediately. Bad-order and set out.', urgency: 'Immediate', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
+    if (inc.detectorType === 'HBD') return { action: 'MANDATORY SET-OUT — Remove car from service at next available point. Do not continue movement without mechanical inspection.', urgency: 'Immediate', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
+    if (inc.detectorType === 'DED') return { action: 'EMERGENCY STOP — Stop train immediately. Inspect for dragging equipment before any movement.', urgency: 'Immediate', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
+    if (inc.detectorType === 'TADS') return { action: 'MANDATORY SET-OUT — S-6000 Level-1 criteria met. Remove bearing from service immediately.', urgency: 'Immediate', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
+    return { action: 'SET OUT CAR — Remove from service and inspect before returning to revenue service.', urgency: 'Immediate', color: 'text-red-400 bg-red-500/10 border-red-500/30' };
+  }
+  if (inc.detectorType === 'WILD') return { action: 'SET OUT AT NEXT YARD — Car must be removed from train at next yard or terminal. Notify car owner.', urgency: 'Next yard', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
+  if (inc.detectorType === 'HBD') return { action: 'MONITOR AND SET OUT — WM52 alert flagged. Monitor for repeat readings. Set out if reading recurs within 240-hour window.', urgency: 'Next opportunity', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
+  return { action: 'NOTIFY OWNER — Alert car owner. Schedule inspection at next maintenance window.', urgency: 'Scheduled', color: 'text-amber-400 bg-amber-500/10 border-amber-500/30' };
+}
+
+function getNextSteps(inc: WaysideIncident): Array<{ step: string; owner: string; priority: 'high' | 'medium' | 'low' }> {
+  const steps: Array<{ step: string; owner: string; priority: 'high' | 'medium' | 'low' }> = [];
+  steps.push({ step: `Create bad-order card on car ${inc.carNumber} referencing defect flag ${inc.defectFlagId || 'TBD'}`, owner: 'Car Dept / Conductor', priority: 'high' });
+  if (inc.workOrderId) steps.push({ step: `Work order ${inc.workOrderId} already raised — assign to mechanical crew at set-out point`, owner: 'Mechanical Supervisor', priority: 'high' });
+  else steps.push({ step: 'Raise work order in COTS/SAP for mechanical inspection', owner: 'Mechanical Supervisor', priority: 'high' });
+  if (inc.detectorType === 'HBD') {
+    steps.push({ step: 'Inspect bearing for heat discolouration, grease leakage, and seal damage', owner: 'Car Mechanic', priority: 'high' });
+    steps.push({ step: 'If bearing temp > 200°F above ambient, replace bearing before returning to service', owner: 'Car Mechanic', priority: 'high' });
+    steps.push({ step: 'Pull car history from UMLER — check prior HBD readings for progressive trend', owner: 'Car Dept Analyst', priority: 'medium' });
+  }
+  if (inc.detectorType === 'WILD') {
+    steps.push({ step: 'Inspect wheel tread for flat spots, shelling, or thermal cracking', owner: 'Car Mechanic', priority: 'high' });
+    steps.push({ step: 'Measure wheel diameter and flange — condemn if below AAR minimum', owner: 'Car Mechanic', priority: 'high' });
+    steps.push({ step: 'Notify car owner (reporting mark: ' + inc.reportingMark + ') within 24 hours per interchange rules', owner: 'Car Dept', priority: 'medium' });
+  }
+  if (inc.detectorType === 'DED') {
+    steps.push({ step: 'Walk entire train length — inspect for dragging brake rigging, hoses, or equipment', owner: 'Conductor / Trainmaster', priority: 'high' });
+    steps.push({ step: 'Secure or remove dragging component before any further movement', owner: 'Conductor', priority: 'high' });
+  }
+  if (inc.detectorType === 'TADS') {
+    steps.push({ step: 'Perform acoustic bearing inspection — listen for grinding, clicking, or irregular noise', owner: 'Car Mechanic', priority: 'high' });
+    steps.push({ step: 'Check bearing for spalling, pitting, or surface defects per S-6000 Level-1 criteria', owner: 'Car Mechanic', priority: 'high' });
+  }
+  steps.push({ step: `Notify ${inc.subdivision} Sub Dispatcher of car set-out at ${inc.location}`, owner: 'Trainmaster / RTC', priority: 'medium' });
+  steps.push({ step: 'Update car status in UMLER/TRAIN II to bad-order', owner: 'Car Dept', priority: 'medium' });
+  steps.push({ step: 'Close incident in ServiceNow once car is set out and WO is raised', owner: inc.assignedTo, priority: 'low' });
+  return steps;
+}
+
+// ─── Defect RCA Modal ─────────────────────────────────────────────────────────
+function DefectRcaModal({ inc, onClose }: { inc: WaysideIncident; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'detected'|'rule'|'action'|'steps'>('detected');
+  const car = carDatabase.find(c => c.carNumber === inc.carNumber);
+  const aarRule = getAARRule(inc);
+  const mandatoryAction = getMandatoryAction(inc);
+  const nextSteps = getNextSteps(inc);
+  const tabs = [
+    { id: 'detected', label: '1. What Was Detected',  icon: <Gauge size={12}/> },
+    { id: 'rule',     label: '2. Rule Violated',       icon: <ShieldAlert size={12}/> },
+    { id: 'action',   label: '3. Mandatory Action',    icon: <AlertTriangle size={12}/> },
+    { id: 'steps',    label: '4. Next Steps',          icon: <ClipboardList size={12}/> },
+  ] as const;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+
+        {/* Header */}
+        <div className="flex items-start justify-between p-4 border-b border-border flex-shrink-0">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Gauge size={14} className="text-orange-400"/>
+              <span className="text-sm font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Defect Analysis</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded border font-bold ${
+                inc.status === 'ALARM' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+              }`}>{inc.status}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 border border-orange-500/30">{inc.detectorType}</span>
+            </div>
+            <div className="text-xs text-muted-foreground truncate max-w-lg">{inc.title}</div>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded"><X size={16}/></button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border flex-shrink-0 overflow-x-auto">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-[11px] font-medium whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === t.id ? 'border-orange-400 text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}>{t.icon}{t.label}</button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+
+          {/* Layer 1 — What Was Detected */}
+          {activeTab === 'detected' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded border border-orange-500/20 bg-orange-500/5">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Detector Reading</div>
+                <p className="text-sm font-semibold text-foreground">{inc.reading}</p>
+                <div className="flex items-center gap-2 mt-2">
+                  <Clock size={11} className="text-muted-foreground"/>
+                  <span className="text-[11px] font-mono text-muted-foreground">{inc.timestamp}</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Car Identity</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Car Number</span><span className="font-mono text-foreground font-semibold">{inc.carNumber}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Reporting Mark</span><span className="font-mono text-foreground">{inc.reportingMark}</span></div>
+                    {car && <>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Car Type</span><span className="text-foreground">{car.carType}</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-muted-foreground">Owner</span><span className="text-foreground">{car.owner}</span></div>
+                    </>}
+                  </div>
+                </div>
+                <div className="p-3 rounded border border-border bg-muted/20">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Detection Location</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Detector</span><span className="font-mono text-foreground">{inc.detectorId}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Location</span><span className="text-foreground">{inc.location}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Subdivision</span><span className="text-foreground">{inc.subdivision}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Milepost</span><span className="font-mono text-foreground">{inc.milepost}</span></div>
+                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Train</span><span className="font-mono text-foreground">{inc.trainId}</span></div>
+                  </div>
+                </div>
+              </div>
+              {inc.defectFlagId && (
+                <div className="flex items-center gap-2 p-3 rounded border border-amber-500/20 bg-amber-500/5 text-xs">
+                  <FileText size={12} className="text-amber-400 flex-shrink-0"/>
+                  <span className="text-muted-foreground">Defect flag raised:</span>
+                  <span className="font-mono text-foreground font-semibold">{inc.defectFlagId}</span>
+                  {inc.workOrderId && <><span className="text-muted-foreground ml-2">Work order:</span><span className="font-mono text-foreground font-semibold">{inc.workOrderId}</span></>}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Layer 2 — Rule Violated */}
+          {activeTab === 'rule' && (
+            <div className="space-y-4">
+              <div className="p-4 rounded border border-red-500/20 bg-red-500/5">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">AAR Rule Triggered</div>
+                <div className="flex items-center gap-2 mb-2">
+                  <ShieldAlert size={14} className="text-red-400"/>
+                  <span className="text-sm font-bold text-foreground">{aarRule.rule}</span>
+                </div>
+                <div className="text-xs text-muted-foreground mb-1">Authority: <span className="text-foreground font-medium">{aarRule.authority}</span></div>
+                <div className="text-xs text-muted-foreground">Threshold: <span className="text-foreground font-medium">{aarRule.threshold}</span></div>
+              </div>
+              <div className="p-4 rounded border border-border bg-muted/20">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">Violation Detail</div>
+                <p className="text-sm text-foreground leading-relaxed">{aarRule.violated}</p>
+              </div>
+              <div className="p-3 rounded border border-border bg-border/10 text-[10px] text-muted-foreground">
+                <strong className="text-foreground">Why this rule exists:</strong>{' '}
+                {inc.detectorType === 'WILD' && 'High wheel impact loads cause progressive rail damage, broken rails, and derailments. AAR Rule 41 thresholds are set based on statistical analysis of wheel-rail interaction forces that exceed safe limits.'}
+                {inc.detectorType === 'HBD' && 'Hot bearings are a leading cause of train derailments. AAR S-6001 K-value methodology uses ambient-normalized temperature ratios to identify bearings trending toward failure, not just absolute temperature.'}
+                {inc.detectorType === 'DED' && 'Dragging equipment can foul switches, strike grade crossing equipment, and cause derailments. DED Level 2 requires immediate stop because the equipment is in active contact with the rail or roadbed.'}
+                {inc.detectorType === 'TADS' && 'Acoustic bearing defects (spalling, pitting, cracking) detected by TADS/ABD indicate bearing failure is imminent. S-6000 Level-1 criteria are set at the point where failure within the next 500 miles is statistically likely.'}
+                {inc.detectorType === 'WIM' && 'Overweight cars cause accelerated track degradation, broken rails, and bridge damage. The 33-ton axle load limit is set by AAR interchange rules based on track structure capacity.'}
+                {!['WILD','HBD','DED','TADS','WIM'].includes(inc.detectorType) && 'Wayside detector thresholds are set by AAR standards to identify equipment defects before they progress to failure in service.'}
+              </div>
+            </div>
+          )}
+
+          {/* Layer 3 — Mandatory Action */}
+          {activeTab === 'action' && (
+            <div className="space-y-4">
+              <div className={`p-4 rounded border ${mandatoryAction.color}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle size={14}/>
+                  <span className="text-xs font-bold uppercase tracking-wide">Urgency: {mandatoryAction.urgency}</span>
+                </div>
+                <p className="text-sm font-semibold leading-relaxed">{mandatoryAction.action}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Detector Type', value: inc.detectorType },
+                  { label: 'Status', value: inc.status },
+                  { label: 'Incident Status', value: inc.incidentStatus },
+                  { label: 'Assigned To', value: inc.assignedTo },
+                  { label: 'Defect Flag', value: inc.defectFlagId || 'Not yet raised' },
+                  { label: 'Work Order', value: inc.workOrderId || 'Not yet raised' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="p-3 rounded border border-border bg-muted/20">
+                    <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label}</div>
+                    <div className="text-xs font-mono text-foreground font-medium">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Layer 4 — Next Steps */}
+          {activeTab === 'steps' && (
+            <div className="space-y-3">
+              <div className="text-xs font-semibold text-foreground mb-1">Prioritized Action Items</div>
+              {nextSteps.map((s, i) => (
+                <div key={i} className={`flex items-start gap-3 p-3 rounded border ${
+                  s.priority === 'high' ? 'border-red-500/20 bg-red-500/5' :
+                  s.priority === 'medium' ? 'border-amber-500/20 bg-amber-500/5' :
+                  'border-border bg-muted/10'
+                }`}>
+                  <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    s.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                    s.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                    'bg-border text-muted-foreground'
+                  }`}>{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-foreground leading-relaxed">{s.step}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Users size={10} className="text-muted-foreground"/>
+                      <span className="text-[10px] text-muted-foreground">{s.owner}</span>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                        s.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                        s.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                        'bg-border text-muted-foreground'
+                      }`}>{s.priority}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function RcaModal({ rca, incidentTitle, onClose }: { rca: RootCauseExplanation; incidentTitle: string; onClose: () => void }) {
   const [activeTab, setActiveTab] = useState<'what'|'where'|'why'|'blast'|'action'>('what');
@@ -282,9 +535,9 @@ function RcaModal({ rca, incidentTitle, onClose }: { rca: RootCauseExplanation; 
   );
 }
 
-// ─── Wayside Incident Row ─────────────────────────────────────────────────
-function WaysideIncidentRow({ inc, idx }: { inc: WaysideIncident; idx: number }) {
-  const [, navigate] = useLocation();
+// ─── Wayside Incident Row ────────────────────────────────────────────────
+function WaysideIncidentRow({ inc, idx, onOpenRca }: { inc: WaysideIncident; idx: number; onOpenRca: (inc: WaysideIncident) => void }) {
+  const [, navigate] = useLocation();;
   const detectorColors: Record<string, string> = {
     HBD:  'bg-orange-500/10 text-orange-400 border-orange-500/30',
     WILD: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
@@ -328,15 +581,25 @@ function WaysideIncidentRow({ inc, idx }: { inc: WaysideIncident; idx: number })
       </td>
       <td className="px-4 py-3 text-muted-foreground text-[11px] max-w-[120px] truncate">{inc.assignedTo}</td>
       <td className="px-4 py-3 text-right mono">
-        <span className="text-[11px] text-muted-foreground">—</span>
+        {inc.status === 'ALARM'
+          ? <span className="text-[11px] text-red-400 font-semibold">Immediate</span>
+          : <span className="text-[11px] text-amber-400">Next yard</span>}
       </td>
-      <td className="px-4 py-3 text-center">
-        <button
-          onClick={() => navigate(`/cars?car=${encodeURIComponent(inc.carNumber)}`)}
-          className="px-2.5 py-1 rounded text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 flex items-center gap-1 mx-auto whitespace-nowrap"
-        >
-          <Radio size={10}/>View Car
-        </button>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-1.5 justify-center flex-wrap">
+          <button
+            onClick={() => onOpenRca(inc)}
+            className="px-2.5 py-1 rounded text-[10px] font-medium bg-orange-500/20 text-orange-400 border border-orange-500/30 hover:bg-orange-500/30 flex items-center gap-1 whitespace-nowrap"
+          >
+            <Gauge size={10}/>Defect Analysis
+          </button>
+          <button
+            onClick={() => navigate(`/cars?car=${encodeURIComponent(inc.carNumber)}`)}
+            className="px-2.5 py-1 rounded text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 flex items-center gap-1 whitespace-nowrap"
+          >
+            <Radio size={10}/>View Car
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -344,6 +607,7 @@ function WaysideIncidentRow({ inc, idx }: { inc: WaysideIncident; idx: number })
 
 export default function Incidents() {
   const [selectedRca, setSelectedRca] = useState<{ rca: RootCauseExplanation; title: string } | null>(null);
+  const [selectedDefect, setSelectedDefect] = useState<WaysideIncident | null>(null);
   const [activeTab, setActiveTab] = useState<'ot' | 'car'>('ot');
 
   const openRca = (incId: string, title: string) => {
@@ -359,6 +623,9 @@ export default function Incidents() {
     <Layout>
       {selectedRca && (
         <RcaModal rca={selectedRca.rca} incidentTitle={selectedRca.title} onClose={() => setSelectedRca(null)}/>
+      )}
+      {selectedDefect && (
+        <DefectRcaModal inc={selectedDefect} onClose={() => setSelectedDefect(null)}/>
       )}
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
@@ -484,7 +751,7 @@ export default function Incidents() {
                 );
               })}
               {activeTab === 'car' && openCarDefects.map((inc, idx) => (
-                <WaysideIncidentRow key={inc.id} inc={inc} idx={idx} />
+                <WaysideIncidentRow key={inc.id} inc={inc} idx={idx} onOpenRca={setSelectedDefect} />
               ))}
             </tbody>
           </table>
