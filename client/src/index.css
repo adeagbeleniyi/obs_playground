@@ -85,46 +85,6 @@
   --sidebar-ring: oklch(0.45 0.22 25);
 }
 
-/* ============================================================
-   LIGHT THEME — CN Rail OT SPOG
-   Professional light palette: crisp white surfaces, slate text,
-   CN red accent, strong contrast for operational data.
-   ============================================================ */
-:root:not(.dark) {
-  --background: oklch(0.97 0.004 240);       /* near-white with cool tint */
-  --foreground: oklch(0.18 0.015 240);       /* deep slate */
-  --card: oklch(1.0 0 0);                    /* pure white cards */
-  --card-foreground: oklch(0.18 0.015 240);
-  --popover: oklch(1.0 0 0);
-  --popover-foreground: oklch(0.18 0.015 240);
-  --primary: oklch(0.45 0.22 25);            /* CN red stays constant */
-  --primary-foreground: oklch(0.98 0 0);
-  --secondary: oklch(0.93 0.006 240);        /* light slate surface */
-  --secondary-foreground: oklch(0.30 0.015 240);
-  --muted: oklch(0.94 0.005 240);            /* very light muted bg */
-  --muted-foreground: oklch(0.48 0.015 240); /* readable medium slate */
-  --accent: oklch(0.92 0.006 240);
-  --accent-foreground: oklch(0.20 0.015 240);
-  --destructive: oklch(0.50 0.22 25);
-  --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.86 0.008 240);           /* subtle divider */
-  --input: oklch(0.90 0.006 240);
-  --ring: oklch(0.45 0.22 25);
-  --chart-1: oklch(0.50 0.22 25);            /* CN red */
-  --chart-2: oklch(0.62 0.18 85);            /* amber */
-  --chart-3: oklch(0.52 0.18 160);           /* teal */
-  --chart-4: oklch(0.55 0.18 210);           /* blue */
-  --chart-5: oklch(0.48 0.15 270);           /* purple */
-  --sidebar: oklch(0.96 0.005 240);          /* very light sidebar */
-  --sidebar-foreground: oklch(0.20 0.015 240);
-  --sidebar-primary: oklch(0.45 0.22 25);
-  --sidebar-primary-foreground: oklch(0.98 0 0);
-  --sidebar-accent: oklch(0.91 0.007 240);
-  --sidebar-accent-foreground: oklch(0.20 0.015 240);
-  --sidebar-border: oklch(0.88 0.007 240);
-  --sidebar-ring: oklch(0.45 0.22 25);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;

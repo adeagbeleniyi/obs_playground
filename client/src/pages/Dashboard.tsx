@@ -1,49 +1,25 @@
 import Layout from "@/components/Layout";
-import { kpiMetrics, incidents, incidentTrendData } from "@/lib/mockData";
+import { kpiMetrics, incidents, incidentTrendData, tagDistribution } from "@/lib/mockData";
 import { predictiveAlerts, type PredictiveAlert } from "@/lib/observabilityData";
-import {
-  FLEET_SNAPSHOT, YARDS, NETWORK_TIMELINE, DAILY_SUMMARY,
-  type TrainSnapshot, type TrainState,
-} from "@/lib/fleetData";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   AlertTriangle, CheckCircle, TrendingDown, TrendingUp, Minus,
   Bot, Zap, Activity, Eye, ChevronDown, ChevronUp,
-  Radio, Thermometer, Clock, Train, MapPin, Gauge,
-  Package, RotateCcw, Fuel, Navigation, ArrowRight,
+  Radio, Thermometer, Clock
 } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-
-// ─── Styling helpers ──────────────────────────────────────────────────────────
 
 const severityColor = { critical: "text-red-400", warning: "text-amber-400", info: "text-sky-400", operational: "text-emerald-400" };
 const severityBg   = { critical: "bg-red-500/10 border-red-500/30", warning: "bg-amber-500/10 border-amber-500/30", info: "bg-sky-500/10 border-sky-500/30", operational: "bg-emerald-500/10 border-emerald-500/30" };
 const trendIcon    = { up: <TrendingUp size={12}/>, down: <TrendingDown size={12}/>, flat: <Minus size={12}/> };
 
 const urgencyConfig = {
-  imminent: { bg: 'bg-red-500/10 border-red-500/40',   badge: 'bg-red-500 text-foreground',   icon: 'text-red-400',   label: 'IMMINENT' },
-  warning:  { bg: 'bg-amber-500/10 border-amber-500/40', badge: 'bg-amber-500 text-foreground', icon: 'text-amber-400', label: 'WARNING'  },
-  watch:    { bg: 'bg-sky-500/10 border-sky-500/30',    badge: 'bg-sky-600 text-foreground',   icon: 'text-sky-400',   label: 'WATCH'    },
+  imminent: { bg: 'bg-red-500/10 border-red-500/40',   badge: 'bg-red-500 text-white',   icon: 'text-red-400',   label: 'IMMINENT' },
+  warning:  { bg: 'bg-amber-500/10 border-amber-500/40', badge: 'bg-amber-500 text-white', icon: 'text-amber-400', label: 'WARNING'  },
+  watch:    { bg: 'bg-sky-500/10 border-sky-500/30',    badge: 'bg-sky-600 text-white',   icon: 'text-sky-400',   label: 'WATCH'    },
 };
 const typeIcon  = { 'threshold-drift': <Thermometer size={12}/>, 'correlated-signals': <Activity size={12}/>, 'trace-latency': <Radio size={12}/> };
 const typeLabel = { 'threshold-drift': 'Threshold Drift', 'correlated-signals': 'Correlated Signals', 'trace-latency': 'Trace Latency' };
-
-const stateConfig: Record<TrainState, { label: string; color: string; bg: string; dot: string }> = {
-  EN_ROUTE_MOVING:       { label: "Moving",        color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", dot: "bg-emerald-400" },
-  EN_ROUTE_STOPPED:      { label: "Stopped",       color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/30",   dot: "bg-amber-400"   },
-  IN_YARD_PRE_DEPARTURE: { label: "Pre-Departure", color: "text-sky-400",     bg: "bg-sky-500/10 border-sky-500/30",       dot: "bg-sky-400"     },
-  IN_YARD_POST_ARRIVAL:  { label: "Post-Arrival",  color: "text-violet-400",  bg: "bg-violet-500/10 border-violet-500/30", dot: "bg-violet-400"  },
-  IN_YARD_CLASSIFYING:   { label: "Classifying",   color: "text-blue-400",    bg: "bg-blue-500/10 border-blue-500/30",     dot: "bg-blue-400"    },
-  ARRIVING:              { label: "Arriving",      color: "text-cyan-400",    bg: "bg-cyan-500/10 border-cyan-500/30",     dot: "bg-cyan-400"    },
-  DEPARTING:             { label: "Departing",     color: "text-lime-400",    bg: "bg-lime-500/10 border-lime-500/30",     dot: "bg-lime-400"    },
-};
-
-const ptcColor: Record<string, string> = {
-  ACTIVE: "text-emerald-400", SUPPRESSED: "text-amber-400",
-  BYPASS: "text-red-400", INITIALIZING: "text-sky-400", NOT_EQUIPPED: "text-muted-foreground",
-};
-
-// ─── Predictive Alert Card ────────────────────────────────────────────────────
 
 function PredictiveAlertCard({ alert }: { alert: PredictiveAlert }) {
   const [open, setOpen] = useState(false);
@@ -75,6 +51,7 @@ function PredictiveAlertCard({ alert }: { alert: PredictiveAlert }) {
         <div className="mt-3 border-t border-border pt-3 space-y-3">
           <p className="text-[10px] text-muted-foreground leading-relaxed">{alert.detail}</p>
 
+          {/* Threshold drift bars */}
           {alert.type === 'threshold-drift' && alert.driftHistory && (
             <div>
               <div className="text-[10px] font-semibold text-foreground mb-1.5">Reading History vs Threshold ({alert.threshold}{alert.unit})</div>
@@ -108,6 +85,7 @@ function PredictiveAlertCard({ alert }: { alert: PredictiveAlert }) {
             </div>
           )}
 
+          {/* Correlated signals */}
           {alert.type === 'correlated-signals' && alert.correlatedSignals && (
             <div>
               <div className="text-[10px] font-semibold text-foreground mb-1.5">{alert.historicalMatches} historical matches for this pattern</div>
@@ -128,6 +106,7 @@ function PredictiveAlertCard({ alert }: { alert: PredictiveAlert }) {
             </div>
           )}
 
+          {/* Trace latency */}
           {alert.type === 'trace-latency' && alert.currentLatencyMs && (
             <div className="flex items-center gap-3">
               <div className="flex-1 p-2 rounded bg-emerald-500/10 border border-emerald-500/20 text-center">
@@ -162,50 +141,7 @@ function PredictiveAlertCard({ alert }: { alert: PredictiveAlert }) {
   );
 }
 
-// ─── Train State Badge ────────────────────────────────────────────────────────
-
-function StateBadge({ state }: { state: TrainState }) {
-  const cfg = stateConfig[state];
-  return (
-    <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${cfg.bg} ${cfg.color}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`}/>
-      {cfg.label}
-    </span>
-  );
-}
-
-// ─── Fleet Train Row ──────────────────────────────────────────────────────────
-
-function TrainRow({ t }: { t: TrainSnapshot }) {
-  return (
-    <div className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-      <div className="w-28 flex-shrink-0">
-        <div className="text-[11px] font-bold mono text-foreground">{t.symbol}</div>
-        <div className="text-[9px] text-muted-foreground truncate">{t.origin.replace(' Yard','')} → {t.destination.replace(' Yard','')}</div>
-      </div>
-      <StateBadge state={t.state} />
-      <div className="flex-1 min-w-0">
-        <div className="text-[10px] text-muted-foreground truncate">{t.subdivision} · MP {t.milepost}</div>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <div className="text-[11px] mono text-foreground">{t.speed} mph</div>
-        <div className={`text-[9px] ${ptcColor[t.ptcState]}`}>PTC: {t.ptcState}</div>
-      </div>
-      <div className="text-right flex-shrink-0 w-16">
-        <div className="text-[10px] mono text-foreground">{t.cars} cars</div>
-        <div className="text-[9px] text-muted-foreground">{(t.weight/1000).toFixed(0)}kt</div>
-      </div>
-      {t.activeAlarms > 0 ? (
-        <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/20 border border-red-500/30 text-red-400 font-bold flex-shrink-0">{t.activeAlarms} ALM</span>
-      ) : (
-        <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex-shrink-0">CLR</span>
-      )}
-    </div>
-  );
-}
-
-// ─── Incident categories ──────────────────────────────────────────────────────
-
+// Updated incident categories (no raw tags)
 const incidentCategories = [
   { tag: 'Non-Technical / NSR', count: 1596, color: '#64748b' },
   { tag: 'Communication Failures', count: 377, color: '#D22630' },
@@ -214,38 +150,12 @@ const incidentCategories = [
   { tag: 'Software / Config', count: 120, color: '#a78bfa' },
 ];
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────────
-
 export default function Dashboard() {
-  const [timeIndex, setTimeIndex] = useState(NETWORK_TIMELINE.length - 1);
-  const currentNetworkSnap = NETWORK_TIMELINE[timeIndex];
-  const isLive = timeIndex === NETWORK_TIMELINE.length - 1;
-
   const openIncidents = incidents.filter(i => i.status === 'open' || i.status === 'investigating');
   const aiResolved   = incidents.filter(i => i.aiResolved);
   const imminent = predictiveAlerts.filter(a => a.urgency === 'imminent');
   const warning  = predictiveAlerts.filter(a => a.urgency === 'warning');
   const watch    = predictiveAlerts.filter(a => a.urgency === 'watch');
-
-  // Fleet breakdown from snapshot
-  const moving    = FLEET_SNAPSHOT.filter(t => t.state === 'EN_ROUTE_MOVING');
-  const stopped   = FLEET_SNAPSHOT.filter(t => t.state === 'EN_ROUTE_STOPPED');
-  const inYard    = FLEET_SNAPSHOT.filter(t => t.state === 'IN_YARD_PRE_DEPARTURE' || t.state === 'IN_YARD_POST_ARRIVAL' || t.state === 'IN_YARD_CLASSIFYING');
-  const arriving  = FLEET_SNAPSHOT.filter(t => t.state === 'ARRIVING');
-  const totalFuelSaved = FLEET_SNAPSHOT.reduce((s, t) => s + t.fuelSavedGallons, 0);
-  const totalMilesActive = FLEET_SNAPSHOT.reduce((s, t) => s + t.milesToday, 0);
-
-  // Fleet KPIs using time-travel snapshot
-  const fleetKpis = [
-    { label: "Trains Moving",    value: isLive ? moving.length    : currentNetworkSnap.trainsMoving,    unit: "",    color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: <Navigation size={13} className="text-emerald-400"/> },
-    { label: "Trains Stopped",   value: isLive ? stopped.length   : currentNetworkSnap.trainsStopped,   unit: "",    color: "text-amber-400",   bg: "bg-amber-500/10 border-amber-500/30",   icon: <Clock size={13} className="text-amber-400"/> },
-    { label: "In Yards",         value: isLive ? inYard.length    : currentNetworkSnap.trainsInYard,    unit: "",    color: "text-sky-400",     bg: "bg-sky-500/10 border-sky-500/30",       icon: <Package size={13} className="text-sky-400"/> },
-    { label: "Arriving",         value: isLive ? arriving.length  : currentNetworkSnap.trainsArriving,  unit: "",    color: "text-cyan-400",    bg: "bg-cyan-500/10 border-cyan-500/30",     icon: <ArrowRight size={13} className="text-cyan-400"/> },
-    { label: "Miles Covered",    value: isLive ? DAILY_SUMMARY.totalMilesCovered.toLocaleString() : currentNetworkSnap.totalMilesNetwork.toLocaleString(), unit: "mi", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/30", icon: <Gauge size={13} className="text-violet-400"/> },
-    { label: "Fuel Saved Today", value: isLive ? DAILY_SUMMARY.fuelSavedGallons.toLocaleString() : currentNetworkSnap.fuelSavedGallons.toLocaleString(), unit: "gal", color: "text-lime-400", bg: "bg-lime-500/10 border-lime-500/30", icon: <Fuel size={13} className="text-lime-400"/> },
-    { label: "Active Alarms",    value: isLive ? FLEET_SNAPSHOT.reduce((s,t) => s+t.activeAlarms,0) : currentNetworkSnap.activeAlarms, unit: "", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", icon: <AlertTriangle size={13} className="text-red-400"/> },
-    { label: "PTC Compliance",   value: isLive ? "99.2" : currentNetworkSnap.ptcCompliance.toFixed(1), unit: "%", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: <CheckCircle size={13} className="text-emerald-400"/> },
-  ];
 
   return (
     <Layout>
@@ -257,185 +167,25 @@ export default function Dashboard() {
             <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Network Overview</h1>
             <p className="text-xs text-muted-foreground mt-0.5">CN Rail OT · Single Pane of Glass · OWL · CARMA · Dynatrace · ServiceNow</p>
           </div>
-          <div className="flex items-center gap-3">
-            {!isLive && (
-              <span className="text-[11px] px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-medium">
-                Time Travel: {currentNetworkSnap.time}
-              </span>
-            )}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-              <div className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}/>
-              <span className={`text-[11px] font-medium ${isLive ? 'text-emerald-400' : 'text-amber-400'}`}>{isLive ? 'Live' : 'Historical'}</span>
-            </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+            <span className="text-[11px] text-emerald-400 font-medium">Live</span>
           </div>
         </div>
 
-        {/* ═══ TIME-TRAVEL SLIDER ═══ */}
-        <div className="rounded border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <RotateCcw size={13} className="text-muted-foreground"/>
-              <span className="text-xs font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Network Time-Travel</span>
-              <span className="text-[10px] text-muted-foreground">— Scrub back to see how the fleet evolved throughout the day</span>
-            </div>
-            <button
-              onClick={() => setTimeIndex(NETWORK_TIMELINE.length - 1)}
-              className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${isLive ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : 'border-border text-muted-foreground hover:text-foreground'}`}
-            >
-              Jump to Live
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] mono text-muted-foreground w-10">00:00</span>
-            <input
-              type="range"
-              min={0}
-              max={NETWORK_TIMELINE.length - 1}
-              value={timeIndex}
-              onChange={e => setTimeIndex(Number(e.target.value))}
-              className="flex-1 accent-[#D22630] h-1.5 cursor-pointer"
-            />
-            <span className="text-[10px] mono text-muted-foreground w-10 text-right">10:00</span>
-          </div>
-          {/* Timeline tick labels */}
-          <div className="flex justify-between mt-1 px-10">
-            {NETWORK_TIMELINE.map((snap, i) => (
-              <button
-                key={snap.time}
-                onClick={() => setTimeIndex(i)}
-                className={`text-[9px] mono transition-colors ${i === timeIndex ? 'text-[#D22630] font-bold' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                {snap.time}
-              </button>
-            ))}
-          </div>
-          {/* Mini sparkline of trains moving */}
-          <div className="mt-2 h-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={NETWORK_TIMELINE} margin={{ top:2, right:0, bottom:0, left:0 }}>
-                <defs>
-                  <linearGradient id="movGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#10B981" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="time" hide/>
-                <YAxis hide domain={['auto','auto']}/>
-                <Tooltip
-                  contentStyle={{ background:'#1f2937', border:'1px solid #374151', borderRadius:4, fontSize:10 }}
-                  labelStyle={{ color:'#f9fafb' }}
-                  formatter={(v: number) => [v, 'Trains Moving']}
-                />
-                <Area type="monotone" dataKey="trainsMoving" stroke="#10B981" strokeWidth={1.5} fill="url(#movGrad)"/>
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* ═══ FLEET KPI TILES (8 tiles) ═══ */}
-        <div className="grid grid-cols-8 gap-2">
-          {fleetKpis.map(kpi => (
-            <div key={kpi.label} className={`rounded border p-3 ${kpi.bg}`}>
-              <div className="flex items-center gap-1.5 mb-1">
-                {kpi.icon}
-                <div className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{kpi.label}</div>
+        {/* KPI Tiles */}
+        <div className="grid grid-cols-6 gap-3">
+          {kpiMetrics.map(kpi => (
+            <div key={kpi.label} className={`rounded border p-3 ${severityBg[kpi.severity]}`}>
+              <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{kpi.label}</div>
+              <div className={`text-xl font-bold mono ${severityColor[kpi.severity]}`}>
+                {kpi.value}{kpi.unit && <span className="text-xs font-normal ml-0.5">{kpi.unit}</span>}
               </div>
-              <div className={`text-lg font-bold mono ${kpi.color}`}>
-                {kpi.value}{kpi.unit && <span className="text-[10px] font-normal ml-0.5">{kpi.unit}</span>}
+              <div className={`flex items-center gap-1 text-[10px] mt-1 ${severityColor[kpi.severity]}`}>
+                {trendIcon[kpi.trend]}<span>{kpi.trendValue}</span>
               </div>
             </div>
           ))}
-        </div>
-
-        {/* ═══ DAILY SUMMARY STRIP ═══ */}
-        <div className="rounded border border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Train size={13} className="text-[#D22630]"/>
-            <span className="text-xs font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Today's Network Summary</span>
-            <span className="text-[10px] text-muted-foreground">— {DAILY_SUMMARY.date} · All subdivisions</span>
-          </div>
-          <div className="grid grid-cols-10 gap-3">
-            {[
-              { label: "Trains Active",     value: DAILY_SUMMARY.trainsActive,                       unit: "" },
-              { label: "Trains Completed",  value: DAILY_SUMMARY.trainsCompleted,                    unit: "" },
-              { label: "Cars Moved",        value: DAILY_SUMMARY.totalCarsMoved.toLocaleString(),     unit: "" },
-              { label: "Tons Moved",        value: (DAILY_SUMMARY.totalTonsMoved/1000).toFixed(0)+"k", unit: "t" },
-              { label: "Brake Tests",       value: `${DAILY_SUMMARY.airBrakeTestsPassed}/${DAILY_SUMMARY.airBrakeTestsTotal}`, unit: "pass" },
-              { label: "Consist Changes",   value: DAILY_SUMMARY.consistChanges,                     unit: "" },
-              { label: "Crew Changes",      value: DAILY_SUMMARY.crewChanges,                        unit: "" },
-              { label: "Detector Passages", value: DAILY_SUMMARY.detectorPassages,                   unit: "" },
-              { label: "Detector Alarms",   value: DAILY_SUMMARY.detectorAlarms,                     unit: "" },
-              { label: "Foreign Cars",      value: DAILY_SUMMARY.foreignCarsHandled,                 unit: "" },
-            ].map(s => (
-              <div key={s.label} className="text-center">
-                <div className="text-base font-bold mono text-foreground">{s.value}<span className="text-[9px] font-normal text-muted-foreground ml-0.5">{s.unit}</span></div>
-                <div className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ═══ FLEET STATE + YARD STATUS ROW ═══ */}
-        <div className="grid grid-cols-12 gap-4">
-
-          {/* Active Fleet State */}
-          <div className="col-span-7 bg-card border border-border rounded p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Train size={13} className="text-[#D22630]"/>
-                <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Active Fleet State</span>
-                <span className="text-[10px] text-muted-foreground">— {FLEET_SNAPSHOT.length} trains tracked</span>
-              </div>
-              <a href="/fleet" className="text-[11px] text-[#D22630] hover:underline">Fleet Operations →</a>
-            </div>
-            <div className="space-y-0">
-              {FLEET_SNAPSHOT.map(t => <TrainRow key={t.id} t={t}/>)}
-            </div>
-          </div>
-
-          {/* Yard Status */}
-          <div className="col-span-5 bg-card border border-border rounded p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <MapPin size={13} className="text-[#D22630]"/>
-              <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Yard Status</span>
-              <span className="text-[10px] text-muted-foreground">— {YARDS.length} yards</span>
-            </div>
-            <div className="space-y-2">
-              {YARDS.map(yard => {
-                const utilPct = Math.round((yard.currentCars / yard.capacity) * 100) || 0;
-                return (
-                  <div key={yard.id} className="p-2.5 rounded bg-border/20 border border-border">
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div>
-                        <div className="text-[11px] font-semibold text-foreground">{yard.name}</div>
-                        <div className="text-[9px] text-muted-foreground">{yard.city}, {yard.province} · {yard.subdivision} Sub</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-[10px] mono text-foreground">{yard.trainsInYard} trains</div>
-                        <div className="text-[9px] text-muted-foreground">{yard.currentLocos} locos</div>
-                      </div>
-                    </div>
-                    {yard.capacity > 0 && (
-                      <div>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[9px] text-muted-foreground">{yard.currentCars.toLocaleString()} / {yard.capacity.toLocaleString()} cars</span>
-                          <span className={`text-[9px] font-bold ${utilPct > 85 ? 'text-amber-400' : 'text-emerald-400'}`}>{utilPct}%</span>
-                        </div>
-                        <div className="h-1 bg-border rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${utilPct > 85 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${utilPct}%` }}/>
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 mt-1.5">
-                      {yard.trainsArriving > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 text-cyan-400">{yard.trainsArriving} arriving</span>}
-                      {yard.trainsDeparting > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded bg-lime-500/10 border border-lime-500/20 text-lime-400">{yard.trainsDeparting} departing</span>}
-                      <span className="text-[9px] text-muted-foreground">{yard.type}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
         </div>
 
         {/* ═══ PREDICTIVE ALERTS PANEL ═══ */}
@@ -447,9 +197,9 @@ export default function Dashboard() {
               <span className="text-[10px] text-muted-foreground">— Issues detected before failure occurs</span>
             </div>
             <div className="flex items-center gap-2">
-              {imminent.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-red-500 text-foreground font-bold">{imminent.length} IMMINENT</span>}
-              {warning.length  > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500 text-foreground font-bold">{warning.length} WARNING</span>}
-              {watch.length    > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-sky-600 text-foreground font-bold">{watch.length} WATCH</span>}
+              {imminent.length > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-red-500 text-white font-bold">{imminent.length} IMMINENT</span>}
+              {warning.length  > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500 text-white font-bold">{warning.length} WARNING</span>}
+              {watch.length    > 0 && <span className="text-[10px] px-2 py-0.5 rounded bg-sky-600 text-white font-bold">{watch.length} WATCH</span>}
             </div>
           </div>
 
@@ -474,7 +224,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ═══ CHARTS + INCIDENTS ROW ═══ */}
+        {/* Charts + Incidents row */}
         <div className="grid grid-cols-12 gap-4">
 
           {/* Incident trend */}
@@ -503,7 +253,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Incident categories */}
+          {/* Incident categories (no raw tags) */}
           <div className="col-span-3 bg-card border border-border rounded p-4">
             <div className="text-sm font-semibold text-foreground mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Incident Categories</div>
             <div className="text-xs text-muted-foreground mb-3">By category, 2024–2025</div>
@@ -556,7 +306,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ═══ AI AGENT ACTIVITY ═══ */}
+        {/* AI Agent Activity */}
         <div className="bg-card border border-border rounded p-4">
           <div className="flex items-center gap-2 mb-3">
             <Bot size={14} className="text-sky-400"/>

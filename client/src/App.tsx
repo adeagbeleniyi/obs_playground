@@ -12,11 +12,6 @@ import Systems from "./pages/Systems";
 import TrainJourney from "./pages/TrainJourney";
 import WaysideIntel from "./pages/WaysideIntel";
 import CommIntel from "./pages/CommIntel";
-import WMSObservability from "./pages/WMSObservability";
-import FleetOps from "./pages/FleetOps";
-import Dispatch from "./pages/Dispatch";
-import CrewHOS from "./pages/CrewHOS";
-import CarSearch from "./pages/CarSearch";
 
 function Router() {
   return (
@@ -30,11 +25,6 @@ function Router() {
       <Route path={"/train"} component={TrainJourney} />
       <Route path={"/wayside"} component={WaysideIntel} />
       <Route path={"/comms"} component={CommIntel} />
-      <Route path={"/wms"} component={WMSObservability} />
-      <Route path={"/fleet"} component={FleetOps} />
-      <Route path={"/dispatch"} component={Dispatch} />
-      <Route path={"/crew"} component={CrewHOS} />
-      <Route path={"/cars"} component={CarSearch} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>
@@ -44,7 +34,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark" switchable={true}>
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <Router />
