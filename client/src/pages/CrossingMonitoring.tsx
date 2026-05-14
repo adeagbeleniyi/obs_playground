@@ -132,7 +132,7 @@ function AssetDetailPanel({ asset, onClose }: { asset: CrossingAsset; onClose: (
               >
                 {t === 'dau' ? 'DAU' : t === 'wsdmm' ? 'WSDMM' : t.charAt(0).toUpperCase() + t.slice(1)}
                 {t === 'alarms' && asset.activeAlarms.length > 0 && (
-                  <span className="ml-1 bg-red-500 text-white text-[9px] rounded-full px-1 leading-none py-0.5">{asset.activeAlarms.length}</span>
+                  <span className="ml-1 bg-red-500 text-red-50 text-[9px] rounded-full px-1 leading-none py-0.5">{asset.activeAlarms.length}</span>
                 )}
               </button>
             ))}

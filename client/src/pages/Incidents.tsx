@@ -706,7 +706,7 @@ export default function Incidents() {
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Status</th>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Assigned</th>
                 <th className="text-right px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">MTTR</th>
-                <th className="text-center px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{activeTab === 'ot' ? 'Root Cause' : 'Car Detail'}</th>
+                <th className="text-center px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Root Cause</th>
               </tr>
             </thead>
             <tbody>
