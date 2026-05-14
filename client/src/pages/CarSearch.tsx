@@ -7,6 +7,7 @@ import {
   Clock, ChevronDown, ChevronUp, Shield, Zap, Package,
   Activity, FileText, Radio, ExternalLink
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 // ─── Status badge ──────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: CarRecord['currentStatus'] }) {
@@ -84,8 +85,38 @@ function ConsistTab({ car }: { car: CarRecord }) {
 
 // ─── Wayside Readings Tab ──────────────────────────────────────────────────
 function WaysideTab({ car }: { car: CarRecord }) {
+  // Build chart data from wayside readings
+  const chartData = car.waysideReadings.slice().reverse().map((r, i) => {
+    const numMatch = r.reading.match(/(\d+(?:\.\d+)?)/);
+    const numVal = numMatch ? parseFloat(numMatch[1]) : 0;
+    return {
+      idx: i + 1,
+      label: r.detectorType,
+      value: numVal,
+      status: r.status,
+      color: r.status === 'ALARM' ? '#D22630' : r.status === 'ALERT' ? '#F59E0B' : '#10B981',
+    };
+  }).filter(d => d.value > 0);
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {chartData.length > 1 && (
+        <div className="bg-card border border-border rounded p-3">
+          <div className="text-xs font-semibold text-foreground mb-1">Detector Reading History</div>
+          <div className="text-[10px] text-muted-foreground mb-2">{car.waysideReadings.length} readings — numeric values only</div>
+          <ResponsiveContainer width="100%" height={90}>
+            <BarChart data={chartData} margin={{ top:2, right:4, bottom:0, left:-20 }}>
+              <XAxis dataKey="label" tick={{ fontSize:8, fill:'#6b7280' }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fontSize:8, fill:'#6b7280' }} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={{ background:'#1f2937', border:'1px solid #374151', borderRadius:4, fontSize:10 }}/>
+              <Bar dataKey="value" radius={[2,2,0,0]} name="Reading">
+                {chartData.map((d, i) => <Cell key={i} fill={d.color}/>)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+      <div className="space-y-2">
       {car.waysideReadings.map((r, i) => (
         <div key={i} className={`rounded-lg border p-3 ${
           r.status === 'ALARM' ? 'bg-red-500/5 border-red-500/30' :
@@ -115,6 +146,7 @@ function WaysideTab({ car }: { car: CarRecord }) {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

@@ -12,7 +12,7 @@ import {
   Radio, Thermometer, Clock, Train, MapPin, Gauge,
   Package, RotateCcw, Fuel, Navigation, ArrowRight,
 } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 // ─── Styling helpers ──────────────────────────────────────────────────────────
 
@@ -552,6 +552,64 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══ SUBDIVISION TRAFFIC + PTC STATE ═══ */}
+        <div className="grid grid-cols-12 gap-4">
+          {/* Subdivision traffic bar */}
+          <div className="col-span-7 bg-card border border-border rounded p-4">
+            <div className="text-sm font-semibold text-foreground mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Subdivision Traffic — Last 7 Days</div>
+            <div className="text-xs text-muted-foreground mb-3">Car passages per subdivision</div>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={[
+                { sub: 'Kingston', passages: 1842, alarms: 12 },
+                { sub: 'Edson',    passages: 1623, alarms: 18 },
+                { sub: 'Rivers',   passages: 1411, alarms: 9  },
+                { sub: 'Capreol',  passages: 1288, alarms: 14 },
+                { sub: 'Bala',     passages: 984,  alarms: 6  },
+                { sub: 'Ruel',     passages: 712,  alarms: 4  },
+                { sub: 'Walker',   passages: 623,  alarms: 7  },
+                { sub: 'Biggar',   passages: 541,  alarms: 3  },
+              ]} margin={{ top:4, right:4, bottom:0, left:-20 }}>
+                <XAxis dataKey="sub" tick={{ fontSize:9, fill:'#6b7280' }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fontSize:9, fill:'#6b7280' }} axisLine={false} tickLine={false}/>
+                <Tooltip contentStyle={{ background:'#1f2937', border:'1px solid #374151', borderRadius:4, fontSize:11 }} labelStyle={{ color:'#f9fafb' }}/>
+                <Bar dataKey="passages" fill="#38BDF8" radius={[2,2,0,0]} name="Passages"/>
+                <Bar dataKey="alarms"   fill="#D22630" radius={[2,2,0,0]} name="Alarms"/>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* PTC state donut */}
+          <div className="col-span-5 bg-card border border-border rounded p-4">
+            <div className="text-sm font-semibold text-foreground mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>PTC State Distribution</div>
+            <div className="text-xs text-muted-foreground mb-3">Active trains · 19 total</div>
+            <div className="flex items-center gap-4">
+              <ResponsiveContainer width={120} height={120}>
+                <PieChart>
+                  <Pie data={[
+                    { name: 'Active',       value: 14, color: '#10B981' },
+                    { name: 'Degraded',     value: 3,  color: '#F59E0B' },
+                    { name: 'Suppressed',   value: 1,  color: '#EF4444' },
+                    { name: 'Not Equipped', value: 1,  color: '#6B7280' },
+                  ]} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" paddingAngle={2}>
+                    {[{ name: 'Active', value: 14, color: '#10B981' },{ name: 'Degraded', value: 3, color: '#F59E0B' },{ name: 'Suppressed', value: 1, color: '#EF4444' },{ name: 'Not Equipped', value: 1, color: '#6B7280' }].map((e, i) => (
+                      <Cell key={i} fill={e.color}/>
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ background:'#1f2937', border:'1px solid #374151', borderRadius:4, fontSize:11 }}/>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-1.5 flex-1">
+                {[{ label: 'Active', val: 14, color: 'text-emerald-400' },{ label: 'Degraded', val: 3, color: 'text-amber-400' },{ label: 'Suppressed', val: 1, color: 'text-red-400' },{ label: 'Not Equipped', val: 1, color: 'text-muted-foreground' }].map(r => (
+                  <div key={r.label} className="flex items-center justify-between">
+                    <span className="text-[11px] text-muted-foreground">{r.label}</span>
+                    <span className={`text-[11px] font-bold mono ${r.color}`}>{r.val}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

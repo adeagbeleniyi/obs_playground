@@ -220,6 +220,35 @@ YARDS (${YARDS.length} yards)
 ${yardLines}
 
 ═══════════════════════════════════════════════════════════════
+CROSSING MONITORING — ACTIVE ALARMS & STATUS
+═══════════════════════════════════════════════════════════════
+Total crossings monitored: 15 (DAU+WSDMM equipped)
+Crossings in maintenance mode: 2 (CX-007 Hwy 11 Bala Sub, CX-011 Hwy 17 Ruel Sub)
+Active alarms: 5 (2 CRITICAL, 2 WARNING, 1 INFO)
+
+CRITICAL ALARMS:
+CX-003 | Hwy 400 / Bala Sub MP 27.6 | GATE MALFUNCTION — East gate arm not lowering on activation | SNOW: INC0041233 | Since 2026-05-14 08:12 | RCA: Gate motor drive board failure (capacitor bank). Blast radius: 3 trains queued on Bala Sub.
+CX-008 | Hwy 2 / Kingston Sub MP 88.3 | DAU POWER FAILURE — Battery backup depleted, mains power lost | SNOW: INC0041287 | Since 2026-05-14 11:45 | RCA: Utility power outage at site. DAU on battery, estimated 2h remaining.
+
+WARNING ALARMS:
+CX-001 | Hwy 7 / Kingston Sub MP 44.2 | WSDMM HEARTBEAT MISSED — 3 consecutive missed (interval 30s) | SNOW: INC0041198 | Since 2026-05-14 06:30 | DAU voltage: 12.1V (low). Last WSDMM heartbeat: 06:28:14.
+CX-012 | Hwy 16 / Edson Sub MP 55.8 | WSDMM SOFTWARE FAULT — Runtime exception in gate control module | SNOW: INC0041301 | Since 2026-05-14 13:20 | WSDMM v2.3.1 (outdated, latest v2.4.0). Restart required.
+
+INFO ALARMS:
+CX-005 | Hwy 60 / Ruel Sub MP 112.4 | MAINTENANCE WINDOW OVERDUE — Scheduled maintenance not completed | No SNOW ticket | Since 2026-05-13 00:00 | Last maintenance: 2026-03-15. Overdue by 60 days.
+
+DAU VOLTAGE SUMMARY (normal range 12–14V):
+CX-001: 12.1V (LOW WARNING) | CX-003: 13.4V (OK) | CX-004: 13.8V (OK) | CX-006: 12.0V (LOW WARNING) | CX-008: 11.2V (CRITICAL — battery only) | CX-009: 13.6V (OK) | CX-010: 13.2V (OK) | All others: 13.0–14.0V (OK)
+
+WSDMM SOFTWARE VERSIONS:
+v2.4.0 (latest): CX-002, CX-004, CX-006, CX-009, CX-013, CX-014, CX-015
+v2.3.1 (outdated): CX-001, CX-003, CX-005, CX-007, CX-008, CX-010, CX-011, CX-012
+
+MAINTENANCE MODE:
+CX-007 | Hwy 11 / Bala Sub MP 41.0 | Activated: 2026-05-14 07:00 | By: J.Tremblay | Reason: Scheduled gate arm replacement | Alarms suppressed: 0 | Expected return: 2026-05-14 15:00
+CX-011 | Hwy 17 / Ruel Sub MP 88.2 | Activated: 2026-05-13 22:00 | By: M.Okafor | Reason: WSDMM firmware upgrade to v2.4.0 | Alarms suppressed: 1 (heartbeat) | Expected return: 2026-05-14 06:00 (OVERDUE — 9h past expected)
+
+═══════════════════════════════════════════════════════════════
 SUBDIVISION CAR PASSAGE COUNTS — LAST 7 DAYS (AEI data)
 ═══════════════════════════════════════════════════════════════
 Kingston Sub      | 847 cars | 312 unique | 18 trains | 4 defects detected (1 ALARM, 3 ELEVATED) | avg speed 52 mph
@@ -640,6 +669,36 @@ const SUGGESTED_PROMPTS = [
     icon: <Train size={13} className="text-cyan-400" />,
     label: "Trains with multiple issues",
     prompt: "Are there any trains currently carrying cars with multiple issues (e.g., both a WILD reading above 50 kips AND an open defect, or a HAZMAT car AND a wayside alert)? List them with full details.",
+  },
+  {
+    category: "Crossings",
+    icon: <AlertTriangle size={13} className="text-red-400" />,
+    label: "Active crossing alarms",
+    prompt: "What are all the active crossing alarms right now? For each, give the crossing ID, location, subdivision, alarm type (DAU power failure, WSDMM heartbeat missed, gate malfunction, etc.), severity, time since alarm, SNOW ticket number if raised, and the recommended action.",
+  },
+  {
+    category: "Crossings",
+    icon: <Radio size={13} className="text-amber-400" />,
+    label: "DAU voltage health",
+    prompt: "Which crossings have DAU (Data Acquisition Unit) voltage readings outside the normal range (12–14V)? List each crossing with its current voltage, last heartbeat time, and whether a SNOW ticket has been raised. Are any in maintenance mode?",
+  },
+  {
+    category: "Crossings",
+    icon: <Shield size={13} className="text-blue-400" />,
+    label: "Crossings in maintenance mode",
+    prompt: "Which crossings are currently in maintenance mode? For each, tell me who activated maintenance mode, when it was activated, the reason, and whether there are any active alarms suppressed by maintenance mode. Are any overdue for return to service?",
+  },
+  {
+    category: "Crossings",
+    icon: <Activity size={13} className="text-emerald-400" />,
+    label: "WSDMM heartbeat status",
+    prompt: "Give me the WSDMM (Wayside Signal Data Management Module) heartbeat status across all monitored crossings. Which crossings have missed heartbeats in the last 24 hours? What is the software version distribution and are any crossings running outdated firmware?",
+  },
+  {
+    category: "Crossings",
+    icon: <MapPin size={13} className="text-purple-400" />,
+    label: "Crossing CX-003 RCA",
+    prompt: "Perform a root cause analysis for the crossing CX-003 (Hwy 400 / Bala Sub MP 27.6) gate activation delay event. What was the sequence of events, what systems were involved, what is the blast radius (nearby crossings, trains affected), and what corrective actions are recommended?",
   },
 ];
 
