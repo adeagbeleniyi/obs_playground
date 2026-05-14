@@ -215,8 +215,8 @@ export const predictiveAlerts: PredictiveAlert[] = [
 // ─── ROOT CAUSE EXPLANATIONS ───────────────────────────────────────────────────
 
 export const rootCauseExplanations: Record<string, RootCauseExplanation> = {
-  'INC-20240501-001': {
-    incidentId: 'INC-20240501-001',
+  'INC-20250514-001': {
+    incidentId: 'INC-20250514-001',
     whatHappened: 'The LIG (Locomotive Interface Gateway) socket on CN 3864 disconnected at 14:32:11, causing CARMA to lose all telemetry visibility into the locomotive. The locomotive entered PTC enforcement mode 47 seconds later.',
     eventTimestamp: '2024-05-04T14:32:11Z',
     traceHops: [
@@ -278,8 +278,8 @@ export const rootCauseExplanations: Record<string, RootCauseExplanation> = {
     ],
   },
 
-  'INC-20240501-004': {
-    incidentId: 'INC-20240501-004',
+  'INC-20250514-004': {
+    incidentId: 'INC-20250514-004',
     whatHappened: 'WIU device at Capreol Subdivision MP 201.0 went offline at 14:05:33, causing loss of wayside monitoring for a 12-mile stretch of track. The device has not responded to OWL polling for 28 minutes.',
     eventTimestamp: '2024-05-04T14:05:33Z',
     traceHops: [
@@ -328,8 +328,8 @@ export const rootCauseExplanations: Record<string, RootCauseExplanation> = {
     ],
   },
 
-  'INC-20240501-002': {
-    incidentId: 'INC-20240501-002',
+  'INC-20250514-002': {
+    incidentId: 'INC-20250514-002',
     whatHappened: 'CN 5501 lost GPS signal at 14:28:44 while traversing the Bala Sub tunnel zone near MP 88.7. The I-ETMS initiated a GPS-loss recovery procedure. Signal was restored at 14:31:52 — MTTR: 3 minutes.',
     eventTimestamp: '2024-05-04T14:28:44Z',
     traceHops: [
