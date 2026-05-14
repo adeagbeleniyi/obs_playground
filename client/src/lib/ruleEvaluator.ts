@@ -129,6 +129,18 @@ export const SIM_CARS: CarReading[] = [
   { carId: "CN 892341",    label: "CN 892341 — Gondola",                  wild_kips: 34,  hbd_temp_rise: 7,  ded_status: 0, weight_tons: 168, speed_mph: 52, defect_count: 0, days_since_inspection: 22, subdivision: "Edson Sub",     location: "MP 80.1",  timestamp: ago(2.8) },
   { carId: "BNSF 771234",  label: "BNSF 771234 — Boxcar",                 wild_kips: 29,  hbd_temp_rise: 5,  ded_status: 0, weight_tons: 96,  speed_mph: 60, defect_count: 0, days_since_inspection: 15, subdivision: "Kingston Sub",  location: "MP 60.2",  timestamp: ago(1.5) },
   { carId: "TTX 445521",   label: "TTX 445521 — Flatcar 89ft",            wild_kips: 44,  hbd_temp_rise: 9,  ded_status: 1, weight_tons: 78,  speed_mph: 55, defect_count: 1, days_since_inspection: 102, subdivision: "Rivers Sub",   location: "MP 12.8",  timestamp: ago(0.5) },
+  // Additional cars
+  { carId: "CN 412847",    label: "CN 412847 — Gondola 52ft",             wild_kips: 42,  hbd_temp_rise: 10, ded_status: 0, weight_tons: 198, speed_mph: 52, defect_count: 0, days_since_inspection: 8,  subdivision: "Kingston Sub",  location: "MP 188.4", timestamp: ago(0.3) },
+  { carId: "CSX 441221",   label: "CSX 441221 — Boxcar 60ft",             wild_kips: 58,  hbd_temp_rise: 24, ded_status: 0, weight_tons: 108, speed_mph: 44, defect_count: 0, days_since_inspection: 42, subdivision: "Capreol Sub",   location: "MP 44.2",  timestamp: ago(1.8) },
+  { carId: "CN 331204",    label: "CN 331204 — Covered Hopper",           wild_kips: 38,  hbd_temp_rise: 6,  ded_status: 0, weight_tons: 224, speed_mph: 48, defect_count: 0, days_since_inspection: 19, subdivision: "MacTier Sub",   location: "MP 44.2",  timestamp: ago(2.5) },
+  { carId: "CSXT 4412",    label: "CSXT 4412 — Gondola",                  wild_kips: 142, hbd_temp_rise: 62, ded_status: 0, weight_tons: 134, speed_mph: 48, defect_count: 3, days_since_inspection: 88, subdivision: "Ruel Sub",      location: "MP 79.9",  timestamp: ago(4.5) },
+  { carId: "UP 882341",    label: "UP 882341 — Autorack",                  wild_kips: 36,  hbd_temp_rise: 8,  ded_status: 0, weight_tons: 62,  speed_mph: 55, defect_count: 0, days_since_inspection: 31, subdivision: "Wainwright Sub", location: "MP 122.4", timestamp: ago(1.1) },
+  { carId: "CN 778812",    label: "CN 778812 — Tank Car (HAZMAT)",         wild_kips: 55,  hbd_temp_rise: 16, ded_status: 0, weight_tons: 188, speed_mph: 44, defect_count: 0, days_since_inspection: 14, subdivision: "Edson Sub",     location: "MP 158.0", timestamp: ago(3.0) },
+  { carId: "BNSF 992341",  label: "BNSF 992341 — Intermodal",             wild_kips: 48,  hbd_temp_rise: 12, ded_status: 0, weight_tons: 88,  speed_mph: 60, defect_count: 0, days_since_inspection: 22, subdivision: "Montréal Sub",  location: "MP 88.4",  timestamp: ago(0.9) },
+  { carId: "CN 554321",    label: "CN 554321 — Coil Car",                  wild_kips: 82,  hbd_temp_rise: 28, ded_status: 0, weight_tons: 178, speed_mph: 44, defect_count: 1, days_since_inspection: 55, subdivision: "Kingston Sub",  location: "MP 100.2", timestamp: ago(2.2) },
+  { carId: "NS 334812",    label: "NS 334812 — Centerbeam",               wild_kips: 44,  hbd_temp_rise: 9,  ded_status: 0, weight_tons: 96,  speed_mph: 52, defect_count: 0, days_since_inspection: 28, subdivision: "Capreol Sub",   location: "MP 178.4", timestamp: ago(3.8) },
+  { carId: "TTX 221043",   label: "TTX 221043 — Flatcar 89ft",            wild_kips: 65,  hbd_temp_rise: 19, ded_status: 0, weight_tons: 122, speed_mph: 52, defect_count: 0, days_since_inspection: 44, subdivision: "Rivers Sub",    location: "MP 90.1",  timestamp: ago(1.4) },
+  { carId: "CP 441882",    label: "CP 441882 — Covered Hopper",           wild_kips: 39,  hbd_temp_rise: 7,  ded_status: 0, weight_tons: 218, speed_mph: 48, defect_count: 0, days_since_inspection: 16, subdivision: "Wainwright Sub", location: "MP 44.8",  timestamp: ago(0.7) },
 ];
 
 export const SIM_WHEELS: WheelReading[] = [
@@ -141,6 +153,15 @@ export const SIM_WHEELS: WheelReading[] = [
   { wheelId: "CPKC 334521 / Axle A1-Right",label: "CPKC 334521 — Axle A1-Right", carId: "CPKC 334521", wild_kips: 52,  hbd_temp_rise: 8,  tread_wear_mm: 18, flange_height_mm: 34, subdivision: "Kingston Sub", timestamp: ago(4.2) },
   { wheelId: "NS 228834 / Axle B2-Left",   label: "NS 228834 — Axle B2-Left",     carId: "NS 228834",   wild_kips: 51,  hbd_temp_rise: 11, tread_wear_mm: 26, flange_height_mm: 36, subdivision: "Ruel Sub",     timestamp: ago(6.0) },
   { wheelId: "TTX 445521 / Axle A1-Left",  label: "TTX 445521 — Axle A1-Left",   carId: "TTX 445521",  wild_kips: 44,  hbd_temp_rise: 9,  tread_wear_mm: 30, flange_height_mm: 37, subdivision: "Rivers Sub",   timestamp: ago(0.5) },
+  // Additional wheels
+  { wheelId: "CSXT 4412 / Axle A2-Left",   label: "CSXT 4412 — Axle A2-Left",    carId: "CSXT 4412",   wild_kips: 142, hbd_temp_rise: 62, tread_wear_mm: 41, flange_height_mm: 42, subdivision: "Ruel Sub",     timestamp: ago(4.5) },
+  { wheelId: "CSXT 4412 / Axle B1-Right",  label: "CSXT 4412 — Axle B1-Right",   carId: "CSXT 4412",   wild_kips: 98,  hbd_temp_rise: 44, tread_wear_mm: 38, flange_height_mm: 40, subdivision: "Ruel Sub",     timestamp: ago(4.5) },
+  { wheelId: "CN 554321 / Axle A1-Right",  label: "CN 554321 — Axle A1-Right",   carId: "CN 554321",   wild_kips: 82,  hbd_temp_rise: 28, tread_wear_mm: 29, flange_height_mm: 37, subdivision: "Kingston Sub", timestamp: ago(2.2) },
+  { wheelId: "CN 554321 / Axle B2-Left",   label: "CN 554321 — Axle B2-Left",    carId: "CN 554321",   wild_kips: 74,  hbd_temp_rise: 22, tread_wear_mm: 27, flange_height_mm: 36, subdivision: "Kingston Sub", timestamp: ago(2.2) },
+  { wheelId: "TTX 221043 / Axle A1-Left",  label: "TTX 221043 — Axle A1-Left",   carId: "TTX 221043",  wild_kips: 65,  hbd_temp_rise: 19, tread_wear_mm: 24, flange_height_mm: 35, subdivision: "Rivers Sub",   timestamp: ago(1.4) },
+  { wheelId: "UP 448812 / Axle B2-Right",  label: "UP 448812 — Axle B2-Right",   carId: "UP 448812",   wild_kips: 58,  hbd_temp_rise: 18, tread_wear_mm: 21, flange_height_mm: 34, subdivision: "Edson Sub",    timestamp: ago(0.8) },
+  { wheelId: "CN 778812 / Axle A1-Left",   label: "CN 778812 — Axle A1-Left",    carId: "CN 778812",   wild_kips: 55,  hbd_temp_rise: 16, tread_wear_mm: 20, flange_height_mm: 34, subdivision: "Edson Sub",    timestamp: ago(3.0) },
+  { wheelId: "CSX 441221 / Axle B1-Right", label: "CSX 441221 — Axle B1-Right",  carId: "CSX 441221",  wild_kips: 58,  hbd_temp_rise: 24, tread_wear_mm: 23, flange_height_mm: 35, subdivision: "Capreol Sub",  timestamp: ago(1.8) },
 ];
 
 export const SIM_LOCOS: LocomotiveReading[] = [
@@ -150,6 +171,15 @@ export const SIM_LOCOS: LocomotiveReading[] = [
   { locoId: "CN 2244",   label: "CN 2244 — SD40-2",          speed_mph: 0,  fuel_level_pct: 88, oil_pressure_psi: 64, coolant_temp_c: 72, fault_code_count: 0, hours_since_service: 88,  subdivision: "Ruel Sub",     timestamp: ago(5.0) },
   { locoId: "BNSF 6821", label: "BNSF 6821 — ES44C4",        speed_mph: 55, fuel_level_pct: 12, oil_pressure_psi: 52, coolant_temp_c: 96, fault_code_count: 3, hours_since_service: 820, subdivision: "Bala Sub",     timestamp: ago(3.5) },
   { locoId: "UP 8812",   label: "UP 8812 — SD70ACe (Foreign)",speed_mph: 60, fuel_level_pct: 74, oil_pressure_psi: 61, coolant_temp_c: 79, fault_code_count: 0, hours_since_service: 220, subdivision: "Montréal Sub", timestamp: ago(1.0) },
+  // Additional locomotives
+  { locoId: "CN 3864",   label: "CN 3864 — ES44AC",          speed_mph: 0,  fuel_level_pct: 58, oil_pressure_psi: 44, coolant_temp_c: 74, fault_code_count: 4, hours_since_service: 1020, subdivision: "Ruel Sub",     timestamp: ago(0.5) },
+  { locoId: "CN 5501",   label: "CN 5501 — SD70M-2",         speed_mph: 48, fuel_level_pct: 72, oil_pressure_psi: 61, coolant_temp_c: 81, fault_code_count: 0, hours_since_service: 188, subdivision: "Bala Sub",     timestamp: ago(1.0) },
+  { locoId: "CN 4412",   label: "CN 4412 — ES44DC",          speed_mph: 0,  fuel_level_pct: 34, oil_pressure_psi: 48, coolant_temp_c: 78, fault_code_count: 2, hours_since_service: 640, subdivision: "Kingston Sub", timestamp: ago(0.2) },
+  { locoId: "CN 8012",   label: "CN 8012 — SD70M-2",         speed_mph: 55, fuel_level_pct: 81, oil_pressure_psi: 63, coolant_temp_c: 80, fault_code_count: 0, hours_since_service: 244, subdivision: "Kingston Sub", timestamp: ago(0.8) },
+  { locoId: "CN 7701",   label: "CN 7701 — ES44AC",          speed_mph: 44, fuel_level_pct: 44, oil_pressure_psi: 56, coolant_temp_c: 84, fault_code_count: 1, hours_since_service: 488, subdivision: "Ruel Sub",     timestamp: ago(2.8) },
+  { locoId: "CN 2743",   label: "CN 2743 — SD40-2",          speed_mph: 52, fuel_level_pct: 66, oil_pressure_psi: 60, coolant_temp_c: 83, fault_code_count: 0, hours_since_service: 312, subdivision: "Bala Sub",     timestamp: ago(1.5) },
+  { locoId: "CN 9201",   label: "CN 9201 — ES44DC",          speed_mph: 44, fuel_level_pct: 28, oil_pressure_psi: 50, coolant_temp_c: 89, fault_code_count: 2, hours_since_service: 680, subdivision: "Wainwright Sub", timestamp: ago(1.2) },
+  { locoId: "CN 5812",   label: "CN 5812 — ES44AC",          speed_mph: 0,  fuel_level_pct: 18, oil_pressure_psi: 42, coolant_temp_c: 92, fault_code_count: 5, hours_since_service: 1180, subdivision: "Edson Sub",    timestamp: ago(0.4) },
 ];
 
 export const SIM_TRAINS: TrainReading[] = [
@@ -159,6 +189,15 @@ export const SIM_TRAINS: TrainReading[] = [
   { trainId: "T22151-05", label: "T22151-05 — Gordon → Symington",     speed_mph: 0,  car_count: 78,  tonnage_tons: 12000, alarm_count: 0, hos_remaining_min: 32,  ptc_status: 1, subdivision: "Ruel Sub",     timestamp: ago(2.0) },
   { trainId: "F77251-05", label: "F77251-05 — Walker → Symington",     speed_mph: 12, car_count: 96,  tonnage_tons: 16000, alarm_count: 0, hos_remaining_min: 18,  ptc_status: 1, subdivision: "Rivers Sub",   timestamp: ago(0.3) },
   { trainId: "G87351-05", label: "G87351-05 — MacMillan → Capreol",    speed_mph: 55, car_count: 42,  tonnage_tons: 6000,  alarm_count: 0, hos_remaining_min: 340, ptc_status: 1, subdivision: "Bala Sub",     timestamp: ago(1.5) },
+  // Additional trains
+  { trainId: "H22351-05", label: "H22351-05 — Walker → Biggar",        speed_mph: 58, car_count: 88,  tonnage_tons: 11000, alarm_count: 0, hos_remaining_min: 210, ptc_status: 1, subdivision: "Wainwright Sub", timestamp: ago(1.2) },
+  { trainId: "K44151-05", label: "K44151-05 — MacMillan → Gordon",     speed_mph: 52, car_count: 72,  tonnage_tons: 9500,  alarm_count: 1, hos_remaining_min: 155, ptc_status: 1, subdivision: "MacTier Sub",   timestamp: ago(0.9) },
+  { trainId: "N88251-05", label: "N88251-05 — Taschereau → MacMillan", speed_mph: 60, car_count: 94,  tonnage_tons: 13000, alarm_count: 0, hos_remaining_min: 312, ptc_status: 1, subdivision: "Montréal Sub",  timestamp: ago(0.4) },
+  { trainId: "P33151-05", label: "P33151-05 — Gordon → Taschereau",    speed_mph: 44, car_count: 118, tonnage_tons: 18000, alarm_count: 3, hos_remaining_min: 44,  ptc_status: 0, subdivision: "Capreol Sub",   timestamp: ago(1.8) },
+  { trainId: "R55251-05", label: "R55251-05 — Walker → Symington",     speed_mph: 48, car_count: 102, tonnage_tons: 15000, alarm_count: 0, hos_remaining_min: 188, ptc_status: 1, subdivision: "Rivers Sub",    timestamp: ago(2.2) },
+  { trainId: "S11451-05", label: "S11451-05 — Symington → MacMillan",  speed_mph: 55, car_count: 66,  tonnage_tons: 8800,  alarm_count: 0, hos_remaining_min: 244, ptc_status: 1, subdivision: "Rivers Sub",    timestamp: ago(0.6) },
+  { trainId: "V22351-05", label: "V22351-05 — MacMillan → Walker",     speed_mph: 0,  car_count: 134, tonnage_tons: 22000, alarm_count: 1, hos_remaining_min: 68,  ptc_status: 1, subdivision: "Edson Sub",     timestamp: ago(3.0) },
+  { trainId: "W44151-05", label: "W44151-05 — Taschereau → Gordon",    speed_mph: 52, car_count: 58,  tonnage_tons: 7200,  alarm_count: 0, hos_remaining_min: 288, ptc_status: 1, subdivision: "Moncton Sub",   timestamp: ago(1.1) },
 ];
 
 export const SIM_WAYSIDE: WaysideReading[] = [
@@ -170,6 +209,17 @@ export const SIM_WAYSIDE: WaysideReading[] = [
   { detectorId: "WILD-BAL-67.2",  label: "WILD — Bala Sub MP 67.2",                wild_kips: 68,  hbd_temp_rise: 0,  passage_count_24h: 156, alarm_count_24h: 1, last_calibration_days: 31, subdivision: "Bala Sub",     timestamp: ago(3.5) },
   { detectorId: "AEI-KGS-188.4",  label: "AEI — Kingston Sub MP 188.4",            wild_kips: 0,   hbd_temp_rise: 0,  passage_count_24h: 388, alarm_count_24h: 0, last_calibration_days: 5,  subdivision: "Kingston Sub", timestamp: ago(0.5) },
   { detectorId: "DED-KGS-194.2",  label: "DED — Kingston Sub MP 194.2",            wild_kips: 0,   hbd_temp_rise: 0,  passage_count_24h: 412, alarm_count_24h: 1, last_calibration_days: 8,  subdivision: "Kingston Sub", timestamp: ago(1.2) },
+  // Additional wayside detectors
+  { detectorId: "WILD-RUL-79.9",  label: "WILD — Ruel Sub MP 79.9",                wild_kips: 142, hbd_temp_rise: 0,  passage_count_24h: 88,  alarm_count_24h: 3, last_calibration_days: 18, subdivision: "Ruel Sub",     timestamp: ago(4.5) },
+  { detectorId: "HBD-RUL-79.9",   label: "HBD — Ruel Sub MP 79.9",                 wild_kips: 0,   hbd_temp_rise: 62, passage_count_24h: 88,  alarm_count_24h: 2, last_calibration_days: 18, subdivision: "Ruel Sub",     timestamp: ago(4.5) },
+  { detectorId: "WILD-CAP-44.2",  label: "WILD — Capreol Sub MP 44.2",             wild_kips: 44,  hbd_temp_rise: 0,  passage_count_24h: 144, alarm_count_24h: 0, last_calibration_days: 12, subdivision: "Capreol Sub",  timestamp: ago(1.8) },
+  { detectorId: "HBD-CAP-44.2",   label: "HBD — Capreol Sub MP 44.2",              wild_kips: 0,   hbd_temp_rise: 28, passage_count_24h: 144, alarm_count_24h: 1, last_calibration_days: 12, subdivision: "Capreol Sub",  timestamp: ago(1.8) },
+  { detectorId: "WILD-MTL-88.4",  label: "WILD — Montréal Sub MP 88.4",            wild_kips: 48,  hbd_temp_rise: 0,  passage_count_24h: 622, alarm_count_24h: 2, last_calibration_days: 4,  subdivision: "Montréal Sub", timestamp: ago(0.9) },
+  { detectorId: "HBD-MTL-88.4",   label: "HBD — Montréal Sub MP 88.4",             wild_kips: 0,   hbd_temp_rise: 34, passage_count_24h: 622, alarm_count_24h: 1, last_calibration_days: 4,  subdivision: "Montréal Sub", timestamp: ago(0.9) },
+  { detectorId: "WILD-WAI-122.4", label: "WILD — Wainwright Sub MP 122.4",         wild_kips: 55,  hbd_temp_rise: 0,  passage_count_24h: 112, alarm_count_24h: 1, last_calibration_days: 21, subdivision: "Wainwright Sub", timestamp: ago(1.2) },
+  { detectorId: "DED-BAL-18.7",   label: "DED — Bala Sub MP 18.7",                 wild_kips: 0,   hbd_temp_rise: 0,  passage_count_24h: 156, alarm_count_24h: 0, last_calibration_days: 9,  subdivision: "Bala Sub",     timestamp: ago(2.0) },
+  { detectorId: "TADS-KGS-100.2", label: "TADS — Kingston Sub MP 100.2",           wild_kips: 0,   hbd_temp_rise: 0,  passage_count_24h: 388, alarm_count_24h: 0, last_calibration_days: 15, subdivision: "Kingston Sub", timestamp: ago(1.5) },
+  { detectorId: "HBD-EDN-158.0",  label: "HBD — Edson Sub MP 158.0",               wild_kips: 0,   hbd_temp_rise: 24, passage_count_24h: 88,  alarm_count_24h: 0, last_calibration_days: 28, subdivision: "Edson Sub",    timestamp: ago(3.0) },
 ];
 
 export const SIM_SUBDIVISIONS: SubdivisionReading[] = [
@@ -181,6 +231,10 @@ export const SIM_SUBDIVISIONS: SubdivisionReading[] = [
   { subId: "Montréal Sub",  label: "Montréal Sub",  car_passage_count_7d: 3200, alarm_count_7d: 22, active_train_count: 5, avg_speed_mph: 58, defect_rate_pct: 3.1, timestamp: ago(0.1) },
   { subId: "MacTier Sub",   label: "MacTier Sub",   car_passage_count_7d: 560,  alarm_count_7d: 3,  active_train_count: 1, avg_speed_mph: 50, defect_rate_pct: 0.8, timestamp: ago(0.1) },
   { subId: "Wainwright Sub",label: "Wainwright Sub",car_passage_count_7d: 440,  alarm_count_7d: 2,  active_train_count: 1, avg_speed_mph: 52, defect_rate_pct: 0.6, timestamp: ago(0.1) },
+  { subId: "Capreol Sub",   label: "Capreol Sub",   car_passage_count_7d: 1240, alarm_count_7d: 8,  active_train_count: 2, avg_speed_mph: 46, defect_rate_pct: 1.2, timestamp: ago(0.1) },
+  { subId: "Moncton Sub",   label: "Moncton Sub",   car_passage_count_7d: 680,  alarm_count_7d: 4,  active_train_count: 1, avg_speed_mph: 50, defect_rate_pct: 0.7, timestamp: ago(0.1) },
+  { subId: "Rivers Sub",    label: "Rivers Sub",    car_passage_count_7d: 1920, alarm_count_7d: 12, active_train_count: 3, avg_speed_mph: 51, defect_rate_pct: 1.9, timestamp: ago(0.1) },
+  { subId: "Sprague Sub",   label: "Sprague Sub",   car_passage_count_7d: 320,  alarm_count_7d: 1,  active_train_count: 1, avg_speed_mph: 48, defect_rate_pct: 0.4, timestamp: ago(0.1) },
 ];
 
 export const SIM_YARDS: YardReading[] = [
@@ -190,6 +244,12 @@ export const SIM_YARDS: YardReading[] = [
   { yardId: "Symington Yard",    label: "Symington Yard — Winnipeg",    capacity_pct: 69, car_count: 1920, train_count: 11, dwell_time_avg_hours: 16, timestamp: ago(0.1) },
   { yardId: "Gordon Yard",       label: "Gordon Yard — Moncton",        capacity_pct: 63, car_count: 880,  train_count: 5,  dwell_time_avg_hours: 28, timestamp: ago(0.1) },
   { yardId: "Harvey Yard",       label: "Harvey Yard — New Orleans",    capacity_pct: 74, car_count: 1340, train_count: 7,  dwell_time_avg_hours: 20, timestamp: ago(0.1) },
+  { yardId: "Capreol Yard",      label: "Capreol Yard — Capreol, ON",   capacity_pct: 58, car_count: 1120, train_count: 6,  dwell_time_avg_hours: 24, timestamp: ago(0.1) },
+  { yardId: "Biggar Yard",       label: "Biggar Yard — Biggar, SK",     capacity_pct: 44, car_count: 680,  train_count: 4,  dwell_time_avg_hours: 32, timestamp: ago(0.1) },
+  { yardId: "Jasper Yard",       label: "Jasper Yard — Jasper, AB",     capacity_pct: 52, car_count: 840,  train_count: 4,  dwell_time_avg_hours: 18, timestamp: ago(0.1) },
+  { yardId: "Joffre Yard",       label: "Joffre Yard — Lévis, QC",      capacity_pct: 61, car_count: 1480, train_count: 8,  dwell_time_avg_hours: 20, timestamp: ago(0.1) },
+  { yardId: "Brampton Yard",     label: "Brampton Yard — Brampton, ON", capacity_pct: 82, car_count: 2240, train_count: 14, dwell_time_avg_hours: 16, timestamp: ago(0.1) },
+  { yardId: "Port Robinson Yard",label: "Port Robinson Yard — ON",      capacity_pct: 48, car_count: 560,  train_count: 3,  dwell_time_avg_hours: 36, timestamp: ago(0.1) },
 ];
 
 // ─── Comparison helper ────────────────────────────────────────────────────────
