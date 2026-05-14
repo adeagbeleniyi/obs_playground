@@ -20,13 +20,13 @@ const healthDot: Record<Health, string> = {
 };
 const healthColor: Record<Health, string> = {
   healthy: "text-emerald-400", warning: "text-amber-400",
-  critical: "text-red-400", offline: "text-slate-500",
+  critical: "text-red-400", offline: "text-muted-foreground",
 };
 const HealthIcon = ({ h, size = 13 }: { h: Health; size?: number }) => {
   if (h === "healthy") return <CheckCircle size={size} className="text-emerald-400" />;
   if (h === "warning") return <AlertTriangle size={size} className="text-amber-400" />;
   if (h === "critical") return <XCircle size={size} className="text-red-400" />;
-  return <Clock size={size} className="text-slate-500" />;
+  return <Clock size={size} className="text-muted-foreground" />;
 };
 const typeLabel: Record<string, string> = {
   wiu: "WIU", detector: "Detector", signal: "Signal",
@@ -83,7 +83,7 @@ function InfraCard({ point, timeWindowHours }: { point: WaysideInfraPoint; timeW
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-white truncate">{point.name}</span>
+            <span className="text-xs font-semibold text-foreground truncate">{point.name}</span>
             <span className="text-[10px] text-muted-foreground font-mono">MP {point.milepost}</span>
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
@@ -104,7 +104,7 @@ function InfraCard({ point, timeWindowHours }: { point: WaysideInfraPoint; timeW
             <>
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="bg-background/40 rounded px-2 py-1.5 text-center">
-                  <div className="text-lg font-bold text-white" style={{fontFamily:"Space Grotesk,sans-serif"}}>{filteredLog.length}</div>
+                  <div className="text-lg font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{filteredLog.length}</div>
                   <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Passages</div>
                 </div>
                 <div className="bg-background/40 rounded px-2 py-1.5 text-center">
@@ -136,7 +136,7 @@ function InfraCard({ point, timeWindowHours }: { point: WaysideInfraPoint; timeW
                     <HealthIcon h={entry.status} size={12}/>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-white font-mono">{entry.trainId}</span>
+                        <span className="font-semibold text-foreground font-mono">{entry.trainId}</span>
                         <span className="text-muted-foreground">{entry.leadLoco}</span>
                         <span className={`text-[9px] px-1 py-0.5 rounded border ${entry.direction === "East" || entry.direction === "North" ? "border-blue-500/40 bg-blue-500/10 text-blue-300" : "border-purple-500/40 bg-purple-500/10 text-purple-300"}`}>{entry.direction}</span>
                         <span className="text-muted-foreground ml-auto text-[10px]">{entry.date} {entry.time}</span>
@@ -172,7 +172,7 @@ function SubdivisionSection({ subdiv, points, timeWindowHours }: { subdiv: strin
       <button className="w-full flex items-center gap-3 mb-2" onClick={() => setOpen(v => !v)}>
         <div className="flex items-center gap-2 flex-1">
           {open ? <ChevronDown size={15} className="text-muted-foreground"/> : <ChevronRight size={15} className="text-muted-foreground"/>}
-          <span className="text-sm font-bold text-white" style={{fontFamily:"Space Grotesk,sans-serif"}}>{subdiv} Subdivision</span>
+          <span className="text-sm font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{subdiv} Subdivision</span>
           {hasCritical && <span className="w-2 h-2 rounded-full bg-red-400"/>}
           {!hasCritical && hasWarning && <span className="w-2 h-2 rounded-full bg-amber-400"/>}
         </div>
@@ -226,7 +226,7 @@ export default function WaysideIntel() {
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border">
           <div className="flex items-center justify-between mb-1">
-            <h1 className="text-xl font-bold text-white" style={{fontFamily:"Space Grotesk,sans-serif"}}>Wayside Intelligence</h1>
+            <h1 className="text-xl font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>Wayside Intelligence</h1>
             <div className="flex items-center gap-2 text-[10px] text-emerald-400">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>Live · Dynatrace Grail
             </div>
@@ -238,7 +238,7 @@ export default function WaysideIntel() {
         <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-3 border-b border-border bg-background/30">
           <div className="bg-background/60 rounded border border-border px-3 py-2">
             <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Total Passages</div>
-            <div className="text-2xl font-bold text-white" style={{fontFamily:"Space Grotesk,sans-serif"}}>{networkStats.totalPassages}</div>
+            <div className="text-2xl font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{networkStats.totalPassages}</div>
             <div className="text-[10px] text-muted-foreground">{TIME_WINDOWS.find(w => w.value === timeWindow)?.label}</div>
           </div>
           <div className="bg-background/60 rounded border border-border px-3 py-2">
@@ -257,31 +257,31 @@ export default function WaysideIntel() {
         <div className="flex-shrink-0 flex items-center gap-2 px-6 py-2.5 border-b border-border bg-background/20 flex-wrap">
           <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
             <Calendar size={12} className="text-muted-foreground"/>
-            <select value={timeWindow} onChange={e => setTimeWindow(e.target.value)} className="bg-transparent text-[11px] text-white outline-none cursor-pointer">
-              {TIME_WINDOWS.map(w => <option key={w.value} value={w.value} className="bg-zinc-900">{w.label}</option>)}
+            <select value={timeWindow} onChange={e => setTimeWindow(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
+              {TIME_WINDOWS.map(w => <option key={w.value} value={w.value} className="bg-card">{w.label}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
             <Filter size={12} className="text-muted-foreground"/>
-            <select value={subdivFilter} onChange={e => setSubdivFilter(e.target.value)} className="bg-transparent text-[11px] text-white outline-none cursor-pointer">
-              <option value="all" className="bg-zinc-900">All Subdivisions</option>
-              {activeSubs.map(s => <option key={s} value={s} className="bg-zinc-900">{s}</option>)}
+            <select value={subdivFilter} onChange={e => setSubdivFilter(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
+              <option value="all" className="bg-card">All Subdivisions</option>
+              {activeSubs.map(s => <option key={s} value={s} className="bg-card">{s}</option>)}
             </select>
           </div>
           <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
             <Server size={12} className="text-muted-foreground"/>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="bg-transparent text-[11px] text-white outline-none cursor-pointer">
-              <option value="all" className="bg-zinc-900">All Types</option>
-              <option value="wiu" className="bg-zinc-900">WIU</option>
-              <option value="detector" className="bg-zinc-900">Detector</option>
-              <option value="signal" className="bg-zinc-900">Signal</option>
-              <option value="crossing" className="bg-zinc-900">Crossing</option>
-              <option value="base_station" className="bg-zinc-900">Base Station</option>
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
+              <option value="all" className="bg-card">All Types</option>
+              <option value="wiu" className="bg-card">WIU</option>
+              <option value="detector" className="bg-card">Detector</option>
+              <option value="signal" className="bg-card">Signal</option>
+              <option value="crossing" className="bg-card">Crossing</option>
+              <option value="base_station" className="bg-card">Base Station</option>
             </select>
           </div>
           <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1 flex-1 max-w-xs">
             <Search size={12} className="text-muted-foreground"/>
-            <input type="text" placeholder="Search infrastructure..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-[11px] text-white placeholder:text-muted-foreground outline-none w-full"/>
+            <input type="text" placeholder="Search infrastructure..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground outline-none w-full"/>
           </div>
           <span className="text-[10px] text-muted-foreground ml-auto">{filteredInfra.length} sites</span>
         </div>

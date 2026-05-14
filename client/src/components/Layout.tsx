@@ -11,7 +11,13 @@ import {
   Train,
   MapPinned,
   Wifi,
+  Shield,
+  Sun,
+  Moon,
+  Users,
+  Search,
 } from "lucide-react";
+import { useTheme } from "@/contexts/ThemeContext";
 
 interface NavItem {
   path: string;
@@ -28,6 +34,11 @@ const navItems: NavItem[] = [
   { path: "/train", label: "Train Journey", icon: <Train size={18} /> },
   { path: "/wayside", label: "Wayside Intel", icon: <MapPinned size={18} /> },
   { path: "/comms", label: "Comms Intelligence", icon: <Wifi size={18} /> },
+  { path: "/wms", label: "WMS Observability", icon: <Shield size={18} /> },
+  { path: "/fleet", label: "Fleet Operations", icon: <Activity size={18} /> },
+  { path: "/dispatch", label: "Dispatch & Authority", icon: <Radio size={18} /> },
+  { path: "/crew", label: "Crew & HOS", icon: <Users size={18} /> },
+  { path: "/cars", label: "Car Search", icon: <Search size={18} /> },
 ];
 
 const systemStatusItems = [
@@ -49,6 +60,7 @@ const statusColor: Record<string, string> = {
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
@@ -61,7 +73,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Radio size={14} className="text-white" />
             </div>
             <div>
-              <div className="text-xs font-bold text-white tracking-widest uppercase" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>CN Rail</div>
+              <div className="text-xs font-bold text-foreground tracking-widest uppercase" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>CN Rail</div>
               <div className="text-[10px] text-muted-foreground tracking-wide">OT Observability</div>
             </div>
           </div>
@@ -146,6 +158,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <span className="mono text-xs text-muted-foreground">
               {new Date().toLocaleTimeString('en-CA', { hour12: false, timeZone: 'America/Toronto' })} ET
             </span>
+            <div className="h-4 w-px bg-border" />
+            <button
+              onClick={toggleTheme}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border bg-card hover:bg-accent text-muted-foreground hover:text-foreground transition-colors text-xs"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {theme === 'dark' ? (
+                <><Sun size={13} /><span>Light</span></>
+              ) : (
+                <><Moon size={13} /><span>Dark</span></>
+              )}
+            </button>
           </div>
         </header>
 
