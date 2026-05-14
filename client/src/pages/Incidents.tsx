@@ -1,10 +1,12 @@
 import Layout from "@/components/Layout";
 import { incidents } from "@/lib/mockData";
 import { rootCauseExplanations, type RootCauseExplanation } from "@/lib/observabilityData";
+import { waysideIncidents, type WaysideIncident } from "@/lib/waysideIncidents";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   Bot, X, ChevronRight, Layers, GitBranch, Lightbulb,
-  Zap, Users, FileText, ExternalLink, Clock
+  Zap, Users, FileText, ExternalLink, Clock, Radio, AlertTriangle, Train
 } from "lucide-react";
 
 const statusBadge: Record<string, string> = {
@@ -280,13 +282,78 @@ function RcaModal({ rca, incidentTitle, onClose }: { rca: RootCauseExplanation; 
   );
 }
 
+// ─── Wayside Incident Row ─────────────────────────────────────────────────
+function WaysideIncidentRow({ inc, idx }: { inc: WaysideIncident; idx: number }) {
+  const [, navigate] = useLocation();
+  const detectorColors: Record<string, string> = {
+    HBD:  'bg-orange-500/10 text-orange-400 border-orange-500/30',
+    WILD: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+    DED:  'bg-red-500/10 text-red-400 border-red-500/30',
+    AEI:  'bg-blue-500/10 text-blue-400 border-blue-500/30',
+    TADS: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    WIM:  'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  };
+  return (
+    <tr className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
+      <td className="px-4 py-3">
+        <div className={`w-2 h-2 rounded-full ${inc.status === 'ALARM' ? 'bg-red-500' : 'bg-amber-500'}`}/>
+      </td>
+      <td className="px-4 py-3">
+        <div className="font-medium text-foreground">{inc.title}</div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="mono text-[10px] text-muted-foreground">{inc.id}</span>
+          {inc.workOrderId && (
+            <span className="text-[10px] text-muted-foreground">· WO: <span className="font-mono text-foreground">{inc.workOrderId}</span></span>
+          )}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-0.5 max-w-xs truncate">{inc.reading}</p>
+      </td>
+      <td className="px-4 py-3">
+        <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold ${detectorColors[inc.detectorType] || 'bg-border text-muted-foreground'}`}>
+          {inc.detectorType}
+        </span>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground text-[11px]">Car Defect</td>
+      <td className="px-4 py-3 text-muted-foreground text-[11px]">
+        {inc.subdivision} · MP {inc.milepost}
+        <div className="flex items-center gap-1 mt-0.5">
+          <Train size={10} className="text-cn-red"/>
+          <span className="mono text-[10px]">{inc.trainId}</span>
+        </div>
+      </td>
+      <td className="px-4 py-3">
+        <span className={`px-2 py-0.5 rounded border text-[10px] font-medium ${
+          inc.incidentStatus === 'investigating' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'
+        }`}>{inc.incidentStatus}</span>
+      </td>
+      <td className="px-4 py-3 text-muted-foreground text-[11px] max-w-[120px] truncate">{inc.assignedTo}</td>
+      <td className="px-4 py-3 text-right mono">
+        <span className="text-[11px] text-muted-foreground">—</span>
+      </td>
+      <td className="px-4 py-3 text-center">
+        <button
+          onClick={() => navigate(`/cars?car=${encodeURIComponent(inc.carNumber)}`)}
+          className="px-2.5 py-1 rounded text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30 flex items-center gap-1 mx-auto whitespace-nowrap"
+        >
+          <Radio size={10}/>View Car
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 export default function Incidents() {
   const [selectedRca, setSelectedRca] = useState<{ rca: RootCauseExplanation; title: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'ot' | 'car'>('ot');
 
   const openRca = (incId: string, title: string) => {
     const rca = rootCauseExplanations[incId];
     if (rca) setSelectedRca({ rca, title });
   };
+
+  const openCarDefects = waysideIncidents.filter(i => i.incidentStatus !== 'resolved');
+  const alarmCount = openCarDefects.filter(i => i.status === 'ALARM').length;
+  const alertCount = openCarDefects.filter(i => i.status === 'ALERT').length;
 
   return (
     <Layout>
@@ -299,16 +366,17 @@ export default function Incidents() {
             <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Incidents</h1>
             <p className="text-sm text-muted-foreground mt-0.5">All OT incidents — Dynatrace Davis AI · ServiceNow · Click <span className="text-amber-400">Root Cause</span> for the 5-layer explanation</p>
           </div>
-          <div className="text-xs text-muted-foreground">Showing {incidents.length} incidents</div>
+          <div className="text-xs text-muted-foreground">Showing {incidents.length + openCarDefects.length} incidents</div>
         </div>
 
         {/* Summary Row */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-5 gap-3">
           {[
             { label: 'Open',            count: incidents.filter(i => i.status === 'open').length,           color: 'text-red-400',     bg: 'bg-red-500/10 border-red-500/30' },
             { label: 'Investigating',   count: incidents.filter(i => i.status === 'investigating').length,  color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30' },
             { label: 'Resolved',        count: incidents.filter(i => i.status === 'resolved').length,       color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' },
             { label: 'AI Auto-Resolved',count: incidents.filter(i => i.aiResolved).length,                  color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/30' },
+            { label: 'Car Defects',     count: openCarDefects.length,                                       color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/30' },
           ].map(s => (
             <div key={s.label} className={`rounded border p-3 ${s.bg}`}>
               <div className="text-[10px] text-muted-foreground uppercase tracking-widest">{s.label}</div>
@@ -325,6 +393,39 @@ export default function Incidents() {
           </div>
         </div>
 
+        {/* Car Defect Alert Banner */}
+        {alarmCount > 0 && (
+          <div className="flex items-start gap-3 p-3 rounded border border-red-500/30 bg-red-500/5">
+            <AlertTriangle size={13} className="text-red-400 mt-0.5 flex-shrink-0"/>
+            <div className="text-[11px] text-muted-foreground flex-1">
+              <strong className="text-red-400">{alarmCount} Wayside ALARM{alarmCount > 1 ? 's' : ''} Active</strong> — {alertCount > 0 ? `${alertCount} additional ALERT reading${alertCount > 1 ? 's' : ''} also require attention. ` : ''}Detector readings have been automatically converted to incidents. Click <span className="text-blue-400 font-medium">View Car</span> to open the full car history in Car Search.
+            </div>
+          </div>
+        )}
+
+        {/* Tab switcher */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveTab('ot')}
+            className={`px-4 py-2 rounded text-xs font-semibold transition-colors ${
+              activeTab === 'ot' ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            OT System Incidents ({incidents.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('car')}
+            className={`px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+              activeTab === 'car' ? 'bg-orange-500 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Car Defect Incidents ({openCarDefects.length})
+            {alarmCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-bold">{alarmCount}</span>
+            )}
+          </button>
+        </div>
+
         {/* Incident Table */}
         <div className="bg-card border border-border rounded overflow-hidden">
           <table className="w-full text-xs">
@@ -332,17 +433,17 @@ export default function Incidents() {
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium w-6"/>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Incident</th>
-                <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">System</th>
+                <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">System / Detector</th>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Category</th>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Location</th>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Status</th>
                 <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Assigned</th>
                 <th className="text-right px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">MTTR</th>
-                <th className="text-center px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Root Cause</th>
+                <th className="text-center px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">{activeTab === 'ot' ? 'Root Cause' : 'Car Detail'}</th>
               </tr>
             </thead>
             <tbody>
-              {incidents.map((inc, idx) => {
+              {activeTab === 'ot' && incidents.map((inc, idx) => {
                 const hasRca = !!rootCauseExplanations[inc.id];
                 return (
                   <tr key={inc.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
@@ -382,6 +483,9 @@ export default function Incidents() {
                   </tr>
                 );
               })}
+              {activeTab === 'car' && openCarDefects.map((inc, idx) => (
+                <WaysideIncidentRow key={inc.id} inc={inc} idx={idx} />
+              ))}
             </tbody>
           </table>
         </div>
