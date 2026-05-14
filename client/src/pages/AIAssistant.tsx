@@ -357,11 +357,15 @@ const SUGGESTED_PROMPTS = [
 // Group prompts by category
 const PROMPT_CATEGORIES = Array.from(new Set(SUGGESTED_PROMPTS.map(p => p.category)));
 
-// ─── LLM call (direct from browser) ──────────────────────────────────────────
+// ─── LLM call (via /api/chat proxy to avoid CORS) ───────────────────────────
 async function callLLM(messages: { role: string; content: string }[]): Promise<string> {
-  const endpoint = `${FORGE_BASE_URL}/v1/chat/completions`;
+  // Try the /api/chat serverless proxy first (works on Vercel static deployments)
+  // Fall back to direct Forge call (works on Manus-hosted deployments)
+  const useProxy = !FORGE_API_KEY || window.location.hostname.includes('vercel.app');
+  const endpoint = useProxy ? "/api/chat" : `${FORGE_BASE_URL}/v1/chat/completions`;
+
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (FORGE_API_KEY) headers["Authorization"] = `Bearer ${FORGE_API_KEY}`;
+  if (!useProxy && FORGE_API_KEY) headers["Authorization"] = `Bearer ${FORGE_API_KEY}`;
 
   const resp = await fetch(endpoint, {
     method: "POST",
@@ -375,7 +379,7 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
 
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
-    throw new Error(`LLM API error (${resp.status}). Please check that VITE_FRONTEND_FORGE_API_KEY is set in your Vercel environment variables.`);
+    throw new Error(`LLM API error (${resp.status}): ${txt.slice(0, 200)}`);
   }
 
   const data = await resp.json() as { choices?: { message?: { content?: string } }[] };
