@@ -8,6 +8,10 @@ import {
   Users, Clock, AlertTriangle, CheckCircle, MapPin,
   Train, ChevronDown, ChevronUp, Timer, Zap, Navigation
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, PieChart, Pie, Cell, Legend
+} from 'recharts';
 
 // ─── HOS Countdown Ring ────────────────────────────────────────────────────
 function HOSRing({ remaining, limit, status }: { remaining: number; limit: number; status: HOSStatus }) {
@@ -213,6 +217,85 @@ export default function CrewHOS() {
           </div>
         ))}
       </div>
+
+      {/* Crew HOS Analytics Charts */}
+      {(() => {
+        // HOS status distribution
+        const hosStatusData = [
+          { name: 'Critical', value: summary.critical, color: '#EF4444' },
+          { name: 'Warning', value: summary.warning, color: '#F59E0B' },
+          { name: 'OK', value: summary.ok, color: '#10B981' },
+        ].filter(d => d.value > 0);
+
+        // Hours on duty distribution
+        const dutyBuckets = [0, 0, 0, 0]; // <4h, 4-8h, 8-10h, >10h
+        activeCrew.forEach(c => {
+          if (c.hoursOnDuty < 4) dutyBuckets[0]++;
+          else if (c.hoursOnDuty < 8) dutyBuckets[1]++;
+          else if (c.hoursOnDuty < 10) dutyBuckets[2]++;
+          else dutyBuckets[3]++;
+        });
+        const dutyData = [
+          { range: '<4h', count: dutyBuckets[0] },
+          { range: '4–8h', count: dutyBuckets[1] },
+          { range: '8–10h', count: dutyBuckets[2] },
+          { range: '>10h', count: dutyBuckets[3] },
+        ];
+        const dutyColors = ['#10B981', '#38BDF8', '#F59E0B', '#EF4444'];
+
+        // Crew by subdivision
+        const subCounts: Record<string, number> = {};
+        activeCrew.forEach(c => { subCounts[c.subdivision] = (subCounts[c.subdivision] || 0) + 1; });
+        const subData = Object.entries(subCounts).map(([sub, count]) => ({ sub, count })).sort((a, b) => b.count - a.count);
+
+        const tooltipStyle = {
+          contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
+          labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
+        };
+
+        return (
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-card rounded-lg border border-border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">HOS Status Distribution</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <PieChart>
+                  <Pie data={hosStatusData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} paddingAngle={3} dataKey="value">
+                    {hosStatusData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip {...tooltipStyle} />
+                  <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Hours on Duty Buckets</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <BarChart data={dutyData} margin={{ left: -15 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="range" tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                  <Tooltip {...tooltipStyle} />
+                  <Bar dataKey="count" name="Crews" radius={[3, 3, 0, 0]}>
+                    {dutyData.map((_, i) => <Cell key={i} fill={dutyColors[i]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="bg-card rounded-lg border border-border p-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Active Crews by Subdivision</p>
+              <ResponsiveContainer width="100%" height={130}>
+                <BarChart data={subData} layout="vertical" margin={{ left: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                  <YAxis type="category" dataKey="sub" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} width={55} />
+                  <Tooltip {...tooltipStyle} />
+                  <Bar dataKey="count" fill="#38BDF8" name="Crews" radius={[0, 3, 3, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">

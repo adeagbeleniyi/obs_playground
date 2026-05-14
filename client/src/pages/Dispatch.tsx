@@ -9,6 +9,10 @@ import {
   ChevronRight, Info, Activity, Shield, Flag, FileText,
   ArrowRight, CheckCircle, XCircle, Zap, Navigation,
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, PieChart, Pie, Cell, Legend
+} from "recharts";
 
 // ─── Config helpers ───────────────────────────────────────────────────────────
 
@@ -343,6 +347,72 @@ export default function Dispatch() {
             </div>
           ))}
         </div>
+
+        {/* Dispatch Analytics Charts */}
+        {(() => {
+          // Event type distribution
+          const typeCounts: Record<string, number> = {};
+          TRACK_EVENTS.forEach(e => { typeCounts[eventTypeConfig[e.type]?.label || e.type] = (typeCounts[eventTypeConfig[e.type]?.label || e.type] || 0) + 1; });
+          const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+          const TYPE_COLORS = ['#EF4444', '#F59E0B', '#EF4444', '#A78BFA', '#FB923C', '#38BDF8', '#EF4444', '#F59E0B'];
+
+          // Dispatch status distribution
+          const statusCounts: Record<string, number> = {};
+          DISPATCHED_TRAINS.forEach(t => { statusCounts[dispatchStatusConfig[t.dispatchStatus]?.label || t.dispatchStatus] = (statusCounts[dispatchStatusConfig[t.dispatchStatus]?.label || t.dispatchStatus] || 0) + 1; });
+          const statusData = Object.entries(statusCounts).map(([name, value]) => ({ name, value }));
+          const STATUS_COLORS: Record<string, string> = { 'Authorized': '#38BDF8', 'En Route': '#10B981', 'Holding': '#F59E0B', 'Delayed': '#EF4444', 'Annulled': '#64748b', 'Completed': '#94a3b8' };
+
+          // Delay by train
+          const delayData = DISPATCHED_TRAINS.filter(t => t.delayMinutes > 0).map(t => ({ train: t.trainId.replace('CN-',''), delay: t.delayMinutes })).sort((a, b) => b.delay - a.delay).slice(0, 6);
+
+          const tooltipStyle = {
+            contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
+            labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
+          };
+
+          return (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Track Events by Type</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <BarChart data={typeData} margin={{ left: -15, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" tick={{ fontSize: 7, fill: 'hsl(var(--muted-foreground))' }} angle={-30} textAnchor="end" height={36} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="value" name="Events" radius={[3, 3, 0, 0]}>
+                      {typeData.map((_, i) => <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Train Dispatch Status</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <PieChart>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={28} outerRadius={46} paddingAngle={2} dataKey="value">
+                      {statusData.map(entry => <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#64748b'} />)}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Delay by Train (min)</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <BarChart data={delayData} margin={{ left: -15 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="train" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="delay" fill="#EF4444" name="Delay (min)" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Total delay banner */}
         {totalDelayMins > 0 && (

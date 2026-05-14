@@ -11,6 +11,10 @@ import {
   Gauge, Fuel, Navigation, Users, RefreshCw, Filter,
   Zap, Radio, Wrench, Info, Link2,
 } from "lucide-react";
+import {
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, Legend, CartesianGrid
+} from "recharts";
 
 // ─── Styling helpers ──────────────────────────────────────────────────────────
 
@@ -391,6 +395,72 @@ export default function FleetOps() {
             </div>
           ))}
         </div>
+
+        {/* Fleet Analytics Charts */}
+        {(() => {
+          const stateChartData = Object.entries(stateCounts).map(([state, count]) => ({
+            name: stateConfig[state as TrainState]?.label || state,
+            value: count,
+            color: state === 'EN_ROUTE_MOVING' ? '#10B981' : state === 'EN_ROUTE_STOPPED' ? '#F59E0B' : state === 'IN_YARD_PRE_DEPARTURE' ? '#38BDF8' : state === 'IN_YARD_POST_ARRIVAL' ? '#A78BFA' : state === 'IN_YARD_CLASSIFYING' ? '#3B82F6' : state === 'ARRIVING' ? '#22D3EE' : '#84CC16',
+          }));
+
+          const ptcCounts: Record<string, number> = {};
+          FLEET_SNAPSHOT.forEach(t => { ptcCounts[t.ptcState] = (ptcCounts[t.ptcState] || 0) + 1; });
+          const ptcData = Object.entries(ptcCounts).map(([status, count]) => ({ status, count }));
+          const ptcColors: Record<string, string> = { ACTIVE: '#10B981', SUPPRESSED: '#F59E0B', BYPASS: '#EF4444', INITIALIZING: '#38BDF8', NOT_EQUIPPED: '#64748b' };
+
+          const subCounts: Record<string, number> = {};
+          FLEET_SNAPSHOT.forEach(t => { subCounts[t.subdivision] = (subCounts[t.subdivision] || 0) + 1; });
+          const subData = Object.entries(subCounts).map(([sub, count]) => ({ sub, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+
+          const tooltipStyle = {
+            contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
+            labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
+          };
+
+          return (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Train State Distribution</p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <PieChart>
+                    <Pie data={stateChartData} cx="50%" cy="50%" innerRadius={32} outerRadius={52} paddingAngle={2} dataKey="value">
+                      {stateChartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">PTC Status Distribution</p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <BarChart data={ptcData} margin={{ left: -15 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="status" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="count" name="Trains" radius={[3, 3, 0, 0]}>
+                      {ptcData.map(entry => <Cell key={entry.status} fill={ptcColors[entry.status] || '#64748b'} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Active Trains by Subdivision</p>
+                <ResponsiveContainer width="100%" height={140}>
+                  <BarChart data={subData} layout="vertical" margin={{ left: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="sub" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} width={60} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="count" fill="#38BDF8" name="Trains" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Tabs */}
         <div className="flex items-center gap-1 border-b border-border">

@@ -20,6 +20,7 @@ import CarSearch from "./pages/CarSearch";
 import AIAssistant from "./pages/AIAssistant";
 import AlertRules from "./pages/AlertRules";
 import WatchRules from "./pages/WatchRules";
+import CrossingMonitoring from "./pages/CrossingMonitoring";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -41,6 +42,7 @@ function Router() {
       <Route path={"/ai-assistant"} component={AIAssistant} />
       <Route path={"/alert-rules"} component={AlertRules} />
       <Route path={"/watch-rules"} component={WatchRules} />
+      <Route path={"/crossings"} component={CrossingMonitoring} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

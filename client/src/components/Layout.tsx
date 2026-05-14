@@ -43,6 +43,7 @@ const navItems: NavItem[] = [
   { path: "/crew", label: "Crew & HOS", icon: <Users size={18} /> },
   { path: "/cars", label: "Car Search", icon: <Search size={18} /> },
   { path: "/ai-assistant", label: "AI Assistant", icon: <Bot size={18} /> },
+  { path: "/crossings", label: "Crossing Monitoring", icon: <Radio size={18} /> },
   { path: "/alert-rules", label: "Alert Rules", icon: <Bell size={18} /> },
   { path: "/watch-rules", label: "My Watch Rules", icon: <Eye size={18} /> },
 ];

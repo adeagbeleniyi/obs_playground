@@ -12,8 +12,15 @@ import { FLEET_SNAPSHOT, YARDS } from "@/lib/fleetData";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Role = "user" | "assistant";
-interface Message { role: Role; content: string; }
-interface Session { key: string; messages: Message[]; updatedAt: Date; }
+interface RcaLayer {
+  what: string;
+  where: string;
+  why: string;
+  blastRadius: string;
+  actions: string;
+}
+interface Message { role: Role; content: string; rca?: RcaLayer; }
+interface Session { key: string; messages: Message[]; updatedAt: Date; label?: string; }
 
 // ─── Forge API config ─────────────────────────────────────────────────────────
 const FORGE_BASE_URL =
@@ -272,6 +279,228 @@ Always:
 - For trend questions, extrapolate from available data and note assumptions clearly`;
 }
 
+// ─── Pre-seeded chat sessions ────────────────────────────────────────────────
+const SEEDED_SESSIONS: Session[] = [
+  {
+    key: "BNSF-771204-WILD",
+    label: "BNSF 771204 — WILD 96 kips",
+    updatedAt: new Date("2026-05-13T21:50:00"),
+    messages: [
+      { role: "user", content: "BNSF 771204 just triggered a Rule 41 ALARM at Capreol Sub MP 178.4 — 96 kips. What are the mandatory actions?" },
+      {
+        role: "assistant",
+        content: `BNSF 771204 has triggered a **Rule 41 ALARM** (≥90 kips) — mandatory immediate set-out required.
+
+**Reading:** Axle B2-Left, 96 kips at Capreol Sub MP 178.4 (2026-05-13 21:44)
+**Progressive pattern:** 58 kips → 72 kips → 96 kips — developing flat spot or wheel defect.
+
+**Mandatory Actions (AAR Field Manual Rule 41):**
+1. Train P33151-05 must STOP immediately.
+2. Car BNSF 771204 must be removed from the consist.
+3. Notify car owner (BNSF) via AEI/CARMA.
+4. Wheel shop inspection required — suspected compound flat spot.
+5. Document all three WILD readings in KES for AAR reporting.`,
+        rca: {
+          what: "WILD Rule 41 ALARM: Axle B2-Left recorded 96 kips at Capreol Sub MP 178.4. Exceeds the 90-kip mandatory immediate set-out threshold.",
+          where: "Capreol Sub MP 178.4 — WILD detector site. Train P33151-05 en route. Nearest set-out: Capreol yard (MP 181).",
+          why: "Progressive flat spot development: 58 kips → 72 kips → 96 kips. Each wheel rotation over the flat spot generates increasing impact force. Root cause: likely brake lock-up or wheel slide event during prior operation.",
+          blastRadius: "Train P33151-05 stopped on main line. 4 trains behind on Capreol Sub affected. Capreol yard notified for emergency set-out. BNSF car owner notified. KES event created.",
+          actions: "1. Stop train immediately. 2. Set out BNSF 771204 at Capreol yard. 3. Wheel shop inspection — measure flat depth (>1/4 in = compound flat, immediate condemn). 4. File AAR Rule 41 report. 5. Resume P33151-05 after car removal.",
+        },
+      },
+      { role: "user", content: "Is this car carrying any HAZMAT? And what is the wheel shop procedure for a compound flat?" },
+      {
+        role: "assistant",
+        content: `**HAZMAT Status:** BNSF 771204 is a standard boxcar — no HAZMAT designation. This simplifies the set-out procedure.
+
+**Wheel Shop Procedure for Compound Flat (>1/4 in depth):**
+1. Measure flat depth using a wheel flat gauge at the set-out track.
+2. If depth ≥1/4 in: Condemn wheel — car must not move under its own weight.
+3. If depth 1/8–1/4 in: Set out at next wheel shop, max 30 mph transit speed.
+4. Wheel shop: Turn wheel on wheel lathe to remove flat. Verify diameter within AAR condemning limits.
+5. Re-inspection: After truing, re-measure tread depth and flange thickness before returning to service.
+
+Given the 96-kip reading and progressive pattern, expect the flat depth to be in the compound range (>1/4 in). The car should be condemned pending wheel shop measurement.`,
+      },
+    ],
+  },
+  {
+    key: "UP-448812-DED",
+    label: "UP 448812 — DED Level 2 HAZMAT",
+    updatedAt: new Date("2026-05-14T11:05:00"),
+    messages: [
+      { role: "user", content: "UP 448812 triggered a DED Level 2 alarm on Edson Sub. It is a HAZMAT Class 3 Ethanol car. What is the emergency protocol?" },
+      {
+        role: "assistant",
+        content: `This is a critical event — DED Level 2 with HAZMAT Class 3 (Flammable Liquid — Ethanol) requires full emergency response.
+
+**Event Details:**
+Car UP 448812 | Class 3 Ethanol | Edson Sub MP 112.8 | Train L50251-05
+DED Level 2: Object detected at or below rail head level — dragging brake rigging confirmed.
+
+**Mandatory Actions:**
+1. STOP TRAIN IMMEDIATELY — do not move until full inspection complete.
+2. Notify RTC and dispatcher — flag Edson Sub MP 112.8 as emergency restriction.
+3. Contact emergency response — Class 3 Ethanol requires HAZMAT team standby (spark/ignition risk).
+4. Full under-car inspection of UP 448812 — identify and secure dragging component.
+5. Inspect adjacent cars for secondary damage.
+6. Do not move car until dragging equipment is secured or removed.
+7. File KES event, notify CN HAZMAT coordinator, notify UP (car owner).`,
+        rca: {
+          what: "DED Level 2 ALARM: Dragging equipment detected at rail head level on UP 448812 (HAZMAT Class 3 Ethanol). Train L50251-05 stopped at Edson Sub MP 112.8.",
+          where: "Edson Sub MP 112.8 — DED sensor site. Train L50251-05 (64 cars, mixed manifest). Nearest yard: Edson (MP 118).",
+          why: "Dragging brake rigging — likely a broken brake rod or disconnected brake beam. Root cause: mechanical failure of brake rigging assembly, possibly from prior hard braking event or fatigue fracture.",
+          blastRadius: "Train L50251-05 stopped on main line. Edson Sub blocked. 2 following trains held. HAZMAT Class 3 Ethanol car — emergency response team activated. PTC already in degraded mode on this train.",
+          actions: "1. Stop train, set handbrakes. 2. Full under-car inspection of UP 448812. 3. HAZMAT team standby. 4. Secure/remove dragging equipment. 5. Inspect adjacent 3 cars. 6. Set out UP 448812 at Edson yard. 7. File KES + AAR DED report. 8. Resume L50251-05 after clearance.",
+        },
+      },
+      { role: "user", content: "The inspection found a broken brake beam. Can the train continue after removing the car?" },
+      {
+        role: "assistant",
+        content: `Yes, the train can continue after UP 448812 is set out — provided the following conditions are met:
+
+**Post-Removal Checklist:**
+1. UP 448812 successfully set out at Edson yard — car secured, handbrakes applied.
+2. Adjacent cars inspected — no secondary damage to brake rigging.
+3. Brake test performed on L50251-05 consist after car removal (required after any consist change).
+4. HAZMAT coordinator confirms no spill/leak — Ethanol tank integrity verified.
+5. DED sensor site cleared — no debris on rail from the broken brake beam.
+
+**Broken Brake Beam Disposition:**
+The car must be shopped for: full brake rigging inspection, brake beam replacement, wheel inspection, and return-to-service certification.
+
+**Note on PTC:** L50251-05 is in degraded PTC mode. After resuming, crew must operate under PTC degraded procedures until PTC is restored.
+
+**Estimated delay:** ~3.5 hours total (set-out, inspection, brake test, clearance).`,
+      },
+    ],
+  },
+  {
+    key: "CN-448821-HBD",
+    label: "CN 448821 — HBD WM51 §4.1.1",
+    updatedAt: new Date("2026-05-14T10:45:00"),
+    messages: [
+      { role: "user", content: "Explain the WM51 §4.1.1 alarm on CN 448821. What do the K-values mean and why is this a mandatory set-out?" },
+      {
+        role: "assistant",
+        content: `CN 448821 — HBD WM51 §4.1.1 Qualifying Indication
+
+Reading: Kingston Sub MP 100.4 | 2026-05-14 10:30 | Train Q11451-05
+Kt = 4.8, Ke = 3.2, bearing temperature 118°F above ambient
+
+**What the K-values mean:**
+
+Kt (Train-side K-value) = 4.8
+Kt measures how far this bearing's temperature is from the statistical center of all bearings on the same side of the train. A Kt of 4.8 means this bearing is 4.8 interquartile ranges above the 3rd quartile — an extreme statistical outlier. Anything above 3.5 is a WM51 threshold.
+
+Ke (Equipment K-value) = 3.2
+Ke applies the same calculation using only the bearings on this specific car. Ke > 2.0 confirms the outlier is car-specific, not a train-wide temperature elevation.
+
+§4.1.1 Trigger Conditions (ALL three must be met):
+- Kt > 3.5 → Kt = 4.8 (exceeded)
+- Ke > 2.0 → Ke = 3.2 (exceeded)
+- Bearing ≥50°F hotter than any other bearing on the car → 118°F above ambient, next hottest is 56°F (62°F differential — exceeds 50°F threshold)
+
+Why mandatory set-out? All three §4.1.1 conditions are simultaneously satisfied. This pattern is highly predictive of imminent bearing failure (hot box → journal fire → derailment).`,
+        rca: {
+          what: "HBD WM51 §4.1.1 qualifying indication: Kt=4.8, Ke=3.2, bearing 118°F above ambient (62°F hotter than next hottest bearing on car). All three §4.1.1 conditions satisfied simultaneously.",
+          where: "Kingston Sub MP 100.4 HBD detector. Car in Train Q11451-05. Nearest set-out: Kingston yard (MP 103).",
+          why: "Bearing lubrication failure or contamination. The Kt/Ke combination with large temperature differential vs. car peers indicates a single bearing running dry or with degraded lubricant. Progressive heat buildup — if not set out, journal fire risk within 50–200 miles.",
+          blastRadius: "Train Q11451-05 delayed ~2h for set-out at Kingston. Kingston Sub traffic flow impacted. Car owner (CN) notified. WM51 report filed with AAR.",
+          actions: "1. Set out CN 448821 at Kingston yard. 2. Allow bearing to cool before inspection. 3. Inspect bearing assembly — check lubricant level, contamination, roller condition. 4. If journal fire evidence: condemn bearing, replace assembly. 5. Return to service after shop certification.",
+        },
+      },
+      { role: "user", content: "How does §4.1.1 differ from §4.1.2 and §4.1.3? When would each trigger?" },
+      {
+        role: "assistant",
+        content: `The three WM51 sections target different failure signatures:
+
+**§4.1.1 — Single Hot Bearing (Absolute Outlier)**
+Triggers when ONE bearing is simultaneously:
+- A statistical outlier vs. the train (Kt > 3.5)
+- A statistical outlier vs. its own car (Ke > 2.0)
+- At least 50°F hotter than any other bearing on the same car
+Best at detecting: Acute bearing failure — lubricant loss, contamination, or mechanical damage.
+
+**§4.1.2 — Dominant Hot Bearing (Relative Isolation)**
+Triggers when Kt > 3.5 and the second-hottest bearing on the same car has a Kt less than 45% of this bearing's Kt.
+Best at detecting: A bearing that is disproportionately dominant — the next hottest is less than half as hot.
+CN 882341 case: Kt=4.1, second hottest Kt=1.7 (41% of 4.1, below 45% threshold) → §4.1.2 triggered.
+
+**§4.1.3 — Rolling 3-Pass Window (Chronic Degradation)**
+Triggers when, within a rolling 240-hour window:
+- Pass A: Kt ≥ 4.0, temp ≥95°F above ambient, Ke ≥ 2
+- Pass B & C: Kt ≥ 1.5, Ke ≥ 2
+Best at detecting: Slow-developing bearing degradation that never reaches acute alarm levels in a single pass.
+CSXT 8812 case: Three passes over 240 hours → §4.1.3 triggered at Rivers Sub.
+
+Summary:
+- §4.1.1: Acute single-bearing failure
+- §4.1.2: Isolated dominant bearing
+- §4.1.3: Chronic slow degradation`,
+      },
+    ],
+  },
+  {
+    key: "Edson-Sub-Health",
+    label: "Edson Sub — Multi-System Alert",
+    updatedAt: new Date("2026-05-14T13:00:00"),
+    messages: [
+      { role: "user", content: "Edson Sub seems to have multiple issues right now. Give me a full health check." },
+      {
+        role: "assistant",
+        content: `Edson Sub — Full Health Check (2026-05-14 13:00)
+
+Edson Sub is experiencing a multi-system degradation event — three concurrent issues:
+
+**1. COBRA Radio Degradation (Critical)**
+Jasper repeater site (MP 112) degraded — signal -87 dBm (threshold: -80 dBm). ~15-mile radio shadow MP 105–120. Edson Sub MP 88 repeater also degraded (-84 dBm).
+
+**2. PTC Degraded — Train L50251-05 (Warning)**
+I-ETMS communication loss at Edson Sub MP 44. L50251-05 operating in degraded PTC mode. Max 49 mph in degraded zones. This train is also involved in the DED Level 2 HAZMAT event.
+
+**3. DED Level 2 HAZMAT Event (Critical)**
+UP 448812 (Class 3 Ethanol) on L50251-05 triggered DED Level 2 at MP 112.8. Train stopped. Emergency response activated. Car being set out at Edson yard.
+
+**4. WILD ELEVATED — CN 558412 (Elevated)**
+CN 558412 recorded 62 kips at Edson Sub MP 80.2 (Rule 41 ELEVATED, 50–64 kip range). Owner notified, monitoring.
+
+**Traffic Summary (last 7 days):**
+623 car passages | 241 unique cars | 14 trains | 2 defects detected | avg speed 48 mph
+
+**Overall Assessment:** Edson Sub is at elevated operational risk due to concurrent COBRA degradation, PTC degradation, and active DED HAZMAT event. Priority attention from RTC required.`,
+        rca: {
+          what: "Edson Sub experiencing concurrent: (1) COBRA radio degradation at 2 repeater sites, (2) PTC degraded on L50251-05, (3) DED Level 2 HAZMAT event at MP 112.8, (4) WILD ELEVATED on CN 558412 at MP 80.2.",
+          where: "Edson Sub — primarily MP 44–120 corridor. COBRA shadow: MP 105–120. DED event: MP 112.8. PTC degradation: MP 44+. WILD reading: MP 80.2.",
+          why: "Three independent failure modes coinciding: (1) COBRA repeater hardware degradation, (2) I-ETMS comm loss likely caused by COBRA degradation in the same corridor, (3) Mechanical brake rigging failure on UP 448812. The radio and PTC issues may share a common cause (Jasper repeater at MP 112).",
+          blastRadius: "L50251-05 stopped on main line. 2 following trains held. Edson yard receiving HAZMAT set-out. COBRA shadow affecting 3 trains in MP 105–120 zone. PTC degraded operations requiring crew speed enforcement.",
+          actions: "1. Priority: Clear DED HAZMAT event (L50251-05 set-out). 2. Dispatch COBRA maintenance to Jasper repeater (MP 112) — likely root cause of both radio and PTC issues. 3. Monitor CN 558412 WILD at next detector. 4. Issue slow order for PTC degraded zone. 5. RTC to maintain manual oversight until all systems restored.",
+        },
+      },
+      { role: "user", content: "Could the COBRA degradation be causing the PTC issue on L50251-05?" },
+      {
+        role: "assistant",
+        content: `Yes — this is the most likely root cause. Here is the technical explanation:
+
+**How COBRA and I-ETMS interact on CN:**
+I-ETMS relies on continuous communication between the locomotive's on-board computer and the Back Office Server (BOS) to maintain PTC authority. This communication travels over the COBRA radio network as the primary transport layer.
+
+**The failure chain:**
+1. Jasper repeater site (MP 112) degrades to -87 dBm signal strength
+2. L50251-05 enters the COBRA shadow zone (MP 105–120) while en route
+3. I-ETMS loses its BOS uplink — cannot receive updated movement authorities
+4. I-ETMS transitions to degraded mode — retains last known authority but cannot receive new ones
+5. Logged as "I-ETMS comm loss at Edson Sub MP 44"
+
+**Why this matters:**
+In degraded PTC mode, the system cannot enforce speed restrictions dynamically. The crew must manually comply with all speed limits. The risk is human error — the system is no longer a backstop.
+
+**Recommendation:** Treat the Jasper repeater repair as the highest-priority action on Edson Sub — it likely resolves both the COBRA degradation and the PTC issue simultaneously.`,
+      },
+    ],
+  },
+];
+
 // ─── Suggested prompts (20+ detailed questions) ───────────────────────────────
 const SUGGESTED_PROMPTS = [
   {
@@ -448,9 +677,9 @@ async function callLLM(messages: { role: string; content: string }[]): Promise<s
 
 // ─── Session sidebar item ─────────────────────────────────────────────────────
 function SessionItem({
-  sessionKey, preview, updatedAt, isActive, onClick,
+  sessionKey, label, preview, updatedAt, isActive, onClick,
 }: {
-  sessionKey: string; preview: string; updatedAt: Date; isActive: boolean; onClick: () => void;
+  sessionKey: string; label?: string; preview: string; updatedAt: Date; isActive: boolean; onClick: () => void;
 }) {
   return (
     <button
@@ -462,7 +691,7 @@ function SessionItem({
       <div className="flex items-center gap-2 mb-0.5">
         <MessageSquare size={11} className={isActive ? "text-[#D22630]" : "text-muted-foreground"} />
         <span className={`text-xs font-medium truncate ${isActive ? "text-[#D22630]" : "text-foreground"}`}>
-          {sessionKey === "general" ? "General" : sessionKey}
+          {label || (sessionKey === "general" ? "General" : sessionKey)}
         </span>
       </div>
       {preview && (
@@ -637,13 +866,67 @@ function MessageBubble({ msg }: { msg: Message }) {
       }`}>
         {isUser ? <span className="text-[10px] text-[#D22630] font-bold">YOU</span> : <Bot size={14} className="text-muted-foreground" />}
       </div>
-      <div className={`max-w-[75%] px-3.5 py-2.5 rounded-lg text-sm leading-relaxed whitespace-pre-wrap ${
-        isUser
-          ? "bg-[#D22630]/10 text-foreground rounded-tr-none"
-          : "bg-muted text-foreground rounded-tl-none"
-      }`}>
-        {msg.content}
+      <div className={`max-w-[80%]`}>
+        <div className={`px-3.5 py-2.5 rounded-lg text-sm leading-relaxed whitespace-pre-wrap ${
+          isUser
+            ? "bg-[#D22630]/10 text-foreground rounded-tr-none"
+            : "bg-muted text-foreground rounded-tl-none"
+        }`}>
+          {msg.content}
+        </div>
+        {!isUser && msg.rca && <RcaDrillDown rca={msg.rca} />}
       </div>
+    </div>
+  );
+}
+
+// ─── RCA Drill-Down Panel ─────────────────────────────────────────────────────
+function RcaDrillDown({ rca }: { rca: RcaLayer }) {
+  const [open, setOpen] = useState(false);
+  const [activeLayer, setActiveLayer] = useState<keyof RcaLayer>("what");
+
+  const layers: { key: keyof RcaLayer; label: string; color: string }[] = [
+    { key: "what",        label: "What Happened", color: "text-red-400" },
+    { key: "where",       label: "Where",         color: "text-blue-400" },
+    { key: "why",         label: "Why / RCA",     color: "text-amber-400" },
+    { key: "blastRadius", label: "Blast Radius",  color: "text-orange-400" },
+    { key: "actions",     label: "Actions",       color: "text-emerald-400" },
+  ];
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-[#D22630]/30 bg-[#D22630]/5 hover:bg-[#D22630]/10 transition-colors text-[11px] text-[#D22630] font-medium"
+      >
+        <Activity size={11}/>
+        Root Cause Analysis
+        <ChevronRight size={10} className={`transition-transform ${open ? "rotate-90" : ""}`}/>
+      </button>
+
+      {open && (
+        <div className="mt-2 rounded-lg border border-[#D22630]/20 bg-background overflow-hidden">
+          <div className="flex border-b border-border overflow-x-auto">
+            {layers.map(l => (
+              <button
+                key={l.key}
+                onClick={() => setActiveLayer(l.key)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-[10px] font-medium transition-colors flex-shrink-0 ${
+                  activeLayer === l.key
+                    ? "bg-[#D22630]/10 text-[#D22630] border-b-2 border-[#D22630]"
+                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                }`}
+              >
+                <span className={l.color}>●</span>
+                {l.label}
+              </button>
+            ))}
+          </div>
+          <div className="p-3 text-[11px] text-foreground leading-relaxed whitespace-pre-wrap">
+            {rca[activeLayer]}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -652,6 +935,7 @@ function MessageBubble({ msg }: { msg: Message }) {
 export default function AIAssistant() {
   const [sessions, setSessions] = useState<Session[]>([
     { key: "general", messages: [], updatedAt: new Date() },
+    ...SEEDED_SESSIONS,
   ]);
   const [activeKey, setActiveKey] = useState("general");
   const [input, setInput] = useState("");
@@ -782,6 +1066,7 @@ export default function AIAssistant() {
               <SessionItem
                 key={s.key}
                 sessionKey={s.key}
+                label={s.label}
                 preview={s.messages.filter(m => m.role === "user").slice(-1)[0]?.content.slice(0, 60) ?? "Ask anything about the network"}
                 updatedAt={s.updatedAt}
                 isActive={activeKey === s.key}

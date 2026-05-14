@@ -7,6 +7,10 @@ import {
   ChevronDown, ChevronRight, Train, Search, Filter,
   Calendar, TrendingUp, Users
 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, PieChart, Pie, Cell, Legend
+} from "recharts";
 
 const healthBg: Record<Health, string> = {
   healthy: "bg-emerald-500/10 border-emerald-500/25",
@@ -252,6 +256,80 @@ export default function WaysideIntel() {
             <div className="text-[10px] text-muted-foreground">Warnings + criticals</div>
           </div>
         </div>
+
+        {/* Analytics Charts */}
+        {(() => {
+          // Detector type distribution
+          const typeCounts: Record<string, number> = {};
+          WAYSIDE_INFRA.forEach(p => { typeCounts[typeLabel[p.type] || p.type] = (typeCounts[typeLabel[p.type] || p.type] || 0) + 1; });
+          const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
+          const TYPE_COLORS = ['#38BDF8', '#F59E0B', '#A78BFA', '#10B981', '#FB923C'];
+
+          // Health status distribution
+          const healthCounts = { Healthy: 0, Warning: 0, Critical: 0, Offline: 0 };
+          WAYSIDE_INFRA.forEach(p => {
+            if (p.status === 'healthy') healthCounts.Healthy++;
+            else if (p.status === 'warning') healthCounts.Warning++;
+            else if (p.status === 'critical') healthCounts.Critical++;
+            else healthCounts.Offline++;
+          });
+          const healthData = Object.entries(healthCounts).map(([name, value]) => ({ name, value }));
+          const HEALTH_COLORS = { Healthy: '#10B981', Warning: '#F59E0B', Critical: '#EF4444', Offline: '#64748b' };
+
+          // Passages by subdivision
+          const subPassages: Record<string, number> = {};
+          WAYSIDE_INFRA.forEach(p => {
+            const count = p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours)).length;
+            subPassages[p.subdivision] = (subPassages[p.subdivision] || 0) + count;
+          });
+          const subData = Object.entries(subPassages).map(([sub, count]) => ({ sub, count })).sort((a, b) => b.count - a.count).slice(0, 8);
+
+          const tooltipStyle = {
+            contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
+            labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
+          };
+
+          return (
+            <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-3 border-b border-border bg-background/20">
+              <div className="bg-background/60 rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Infrastructure by Type</p>
+                <ResponsiveContainer width="100%" height={110}>
+                  <PieChart>
+                    <Pie data={typeData} cx="50%" cy="50%" outerRadius={42} dataKey="value" paddingAngle={2}>
+                      {typeData.map((_, i) => <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-background/60 rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Health Status</p>
+                <ResponsiveContainer width="100%" height={110}>
+                  <PieChart>
+                    <Pie data={healthData} cx="50%" cy="50%" outerRadius={42} dataKey="value" paddingAngle={2}>
+                      {healthData.map((entry) => <Cell key={entry.name} fill={HEALTH_COLORS[entry.name as keyof typeof HEALTH_COLORS]} />)}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-background/60 rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Passages by Subdivision</p>
+                <ResponsiveContainer width="100%" height={110}>
+                  <BarChart data={subData} margin={{ left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="sub" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="count" fill="#38BDF8" name="Passages" radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Filters */}
         <div className="flex-shrink-0 flex items-center gap-2 px-6 py-2.5 border-b border-border bg-background/20 flex-wrap">

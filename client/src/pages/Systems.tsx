@@ -1,6 +1,10 @@
 import Layout from "@/components/Layout";
 import { systemHealth } from "@/lib/mockData";
 import { Server, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, PieChart, Pie, Cell, Legend, RadialBarChart, RadialBar
+} from "recharts";
 
 const statusIcon: Record<string, React.ReactNode> = {
   operational: <CheckCircle size={14} className="text-emerald-400" />,
@@ -58,6 +62,66 @@ export default function Systems() {
             );
           })}
         </div>
+
+        {/* System Health Analytics */}
+        {(() => {
+          const statusCounts = { operational: 0, warning: 0, critical: 0, info: 0 };
+          systemHealth.forEach(s => { if (s.status in statusCounts) statusCounts[s.status as keyof typeof statusCounts]++; });
+          const statusData = Object.entries(statusCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
+          const STATUS_COLORS: Record<string, string> = { Operational: '#10B981', Warning: '#F59E0B', Critical: '#EF4444', Info: '#38BDF8' };
+
+          const alertData = systemHealth.filter(s => s.activeAlerts > 0).map(s => ({ name: s.name, alerts: s.activeAlerts })).sort((a, b) => b.alerts - a.alerts).slice(0, 8);
+
+          const uptimeData = systemHealth.map(s => ({ name: s.name, uptime: parseFloat(s.uptime) })).sort((a, b) => a.uptime - b.uptime).slice(0, 8);
+
+          const tooltipStyle = {
+            contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
+            labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
+          };
+
+          return (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">System Status Distribution</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <PieChart>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={30} outerRadius={50} paddingAngle={3} dataKey="value">
+                      {statusData.map(entry => <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#64748b'} />)}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Active Alerts by System</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <BarChart data={alertData} layout="vertical" margin={{ left: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} width={42} />
+                    <Tooltip {...tooltipStyle} />
+                    <Bar dataKey="alerts" fill="#F59E0B" name="Alerts" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="bg-card rounded border border-border p-3">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Uptime % (Lowest First)</p>
+                <ResponsiveContainer width="100%" height={130}>
+                  <BarChart data={uptimeData} layout="vertical" margin={{ left: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" domain={[99, 100]} tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} width={42} />
+                    <Tooltip {...tooltipStyle} formatter={(v: number) => [`${v}%`, 'Uptime']} />
+                    <Bar dataKey="uptime" name="Uptime %" radius={[0, 3, 3, 0]}>
+                      {uptimeData.map(entry => <Cell key={entry.name} fill={entry.uptime >= 99.9 ? '#10B981' : entry.uptime >= 99 ? '#F59E0B' : '#EF4444'} />)}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Systems by Layer */}
         {layers.map(layer => {
