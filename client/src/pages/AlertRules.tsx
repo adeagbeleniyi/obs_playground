@@ -454,9 +454,9 @@ export default function AlertRules() {
               <span className="flex items-center gap-1"><CheckCircle size={12} className="text-emerald-400" />{activeCount} active</span>
               {criticalCount > 0 && <span className="flex items-center gap-1"><AlertTriangle size={12} className="text-red-400" />{criticalCount} critical</span>}
             </div>
-            {isAdmin && !showForm && (
+            {!showForm && (
               <Button size="sm" className="h-8 text-xs bg-[#D22630] hover:bg-[#b01e28] text-white gap-1.5" onClick={() => setShowForm(true)}>
-                <Plus size={13} />New Rule
+                <Plus size={13} />Create Rule
               </Button>
             )}
           </div>
@@ -471,7 +471,7 @@ export default function AlertRules() {
           </div>
         )}
 
-        {showForm && isAdmin && (
+        {showForm && (
           <NewAlertRuleForm onClose={() => setShowForm(false)} onSaved={() => utils.alertRules.listAll.invalidate()} />
         )}
 
