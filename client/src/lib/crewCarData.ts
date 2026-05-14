@@ -961,7 +961,285 @@ export const carDatabase: CarRecord[] = [
     ],
     defectFlags: [],
   },
+
+  // ── Car 21: CN Gondola — SHOP, HBD WM51 K-value alarm (Kt=4.8, Ke=3.2) ────
+  // Caught by AAR S-6001 §4.1.1: Kt>3.5 AND Ke>2 AND bearing 50°F hotter than any other
+  {
+    carNumber: 'CN 448821',
+    reportingMark: 'CN',
+    carType: 'Gondola',
+    owner: 'CN',
+    builtYear: 2013,
+    capacity: 100,
+    length: 52,
+    hazmat: false,
+    currentStatus: 'SHOP',
+    currentLocation: 'MacMillan Yard — Mechanical Shop Bay 5',
+    lastSeen: '2026-05-14 10:30',
+    consistHistory: [
+      { trainId: 'Q11451-05', date: '2026-05-14', position: 38, totalCars: 85, origin: 'MacMillan Yard', destination: 'Taschereau Yard', subdivision: 'Kingston', weight: 200000 },
+      { trainId: 'Q11350-04', date: '2026-05-10', position: 41, totalCars: 92, origin: 'Taschereau Yard', destination: 'MacMillan Yard', subdivision: 'Kingston', weight: 198000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'HBD-KGS-100', detectorType: 'HBD', location: 'Belleville, ON', milepost: 100.4, subdivision: 'Kingston', timestamp: '2026-05-14 09:15', reading: 'WM51 ALARM — Axle A1-Right: Kt=4.8, Ke=3.2, bearing 118°F above ambient (62°F hotter than next hottest bearing). Mandatory set-out required.', status: 'ALARM', trainId: 'Q11451-05' },
+      { detectorId: 'HBD-KGS-050', detectorType: 'HBD', location: 'Cobourg, ON', milepost: 50.1, subdivision: 'Kingston', timestamp: '2026-05-14 08:22', reading: 'WM52 ALERT — Axle A1-Right: Kt=2.1, Ke=2.4, TADS rank 2 defect. Monitoring initiated.', status: 'ALERT', trainId: 'Q11451-05' },
+      { detectorId: 'HBD-KGS-010', detectorType: 'HBD', location: 'Oshawa, ON', milepost: 10.2, subdivision: 'Kingston', timestamp: '2026-05-14 07:30', reading: 'Axle A1-Right: Kt=1.6, Ke=1.8 — elevated, monitoring.', status: 'NORMAL', trainId: 'Q11451-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0512', date: '2026-05-14', severity: 'CRITICAL', type: 'Hot Bearing — WM51 K-value Alarm', description: 'AAR S-6001 §4.1.1 WM51 qualifying indication at Belleville HBD: Kt=4.8 (>3.5), Ke=3.2 (>2), bearing 118°F above ambient — 62°F hotter than next hottest bearing on equipment. Mandatory set-out executed. Car pulled from Q11451-05 at Kingston. Bearing replacement ordered.', detectedBy: 'HBD-KGS-100', location: 'Belleville, ON — Kingston Sub MP 100.4', resolved: false, workOrderId: 'WO-2026-9310' },
+    ],
+  },
+
+  // ── Car 22: BNSF Boxcar — SHOP, WILD Rule 41 ≥90 kips (immediate set-out) ──
+  // Caught by AAR Field Manual Rule 41: wheel impact ≥90 kips = immediate set-out
+  {
+    carNumber: 'BNSF 771204',
+    reportingMark: 'BNSF',
+    carType: 'Boxcar',
+    owner: 'BNSF',
+    builtYear: 2009,
+    capacity: 70,
+    length: 50,
+    hazmat: false,
+    currentStatus: 'SHOP',
+    currentLocation: 'Capreol Yard — Wheel Shop Bay 2',
+    lastSeen: '2026-05-13 22:00',
+    consistHistory: [
+      { trainId: 'P33151-05', date: '2026-05-13', position: 67, totalCars: 118, origin: 'Gordon Yard', destination: 'Taschereau Yard', subdivision: 'Capreol', weight: 140000 },
+      { trainId: 'P33050-04', date: '2026-05-08', position: 71, totalCars: 112, origin: 'Taschereau Yard', destination: 'Gordon Yard', subdivision: 'Capreol', weight: 138000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'WILD-CAP-178', detectorType: 'WILD', location: 'Capreol, ON', milepost: 178.4, subdivision: 'Capreol', timestamp: '2026-05-13 21:44', reading: 'Rule 41 ALARM — Axle B2-Left: 96 kips. Exceeds 90 kip mandatory immediate set-out threshold. Train stopped at MP 178.4.', status: 'ALARM', trainId: 'P33151-05' },
+      { detectorId: 'WILD-CAP-100', detectorType: 'WILD', location: 'Sudbury, ON', milepost: 100.2, subdivision: 'Capreol', timestamp: '2026-05-13 20:55', reading: 'Axle B2-Left: 72 kips — Rule 41 ALERT range (65–89 kips). Set-out at next yard ordered.', status: 'ALERT', trainId: 'P33151-05' },
+      { detectorId: 'WILD-CAP-044', detectorType: 'WILD', location: 'Parry Sound, ON', milepost: 44.2, subdivision: 'Capreol', timestamp: '2026-05-13 19:30', reading: 'Axle B2-Left: 58 kips — Rule 41 ELEVATED (50–64 kips). Owner notified.', status: 'NORMAL', trainId: 'P33151-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0521', date: '2026-05-13', severity: 'CRITICAL', type: 'Wheel Flat — Rule 41 ALARM', description: 'AAR Rule 41 ALARM: Axle B2-Left wheel impact 96 kips at Capreol WILD (MP 178.4). Exceeds 90 kip mandatory immediate set-out threshold. Train P33151-05 stopped. Car pulled from consist. Compound flat spot confirmed — wheel truing required. Progressive deterioration observed: 58 kips (Parry Sound) → 72 kips (Sudbury) → 96 kips (Capreol).', detectedBy: 'WILD-CAP-178', location: 'Capreol, ON — Capreol Sub MP 178.4', resolved: false, workOrderId: 'WO-2026-9318' },
+    ],
+  },
+
+  // ── Car 23: UP Tank Car — SHOP, HAZMAT, DED Level 2 alarm (dragging brake rigging) ──
+  {
+    carNumber: 'UP 448812',
+    reportingMark: 'UP',
+    carType: 'Tank Car',
+    owner: 'UP',
+    builtYear: 2017,
+    capacity: 28000,
+    length: 60,
+    hazmat: true,
+    hazmatClass: 'Class 3 — Flammable Liquid (Ethanol)',
+    currentStatus: 'SHOP',
+    currentLocation: 'Edson, AB — Mechanical Set-Out Track 3',
+    lastSeen: '2026-05-14 11:00',
+    consistHistory: [
+      { trainId: 'L50251-05', date: '2026-05-14', position: 22, totalCars: 148, origin: 'Walker Yard', destination: 'MacMillan Yard', subdivision: 'Edson', weight: 280000 },
+      { trainId: 'L50150-04', date: '2026-05-09', position: 19, totalCars: 144, origin: 'MacMillan Yard', destination: 'Walker Yard', subdivision: 'Edson', weight: 278000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'DED-EDS-112', detectorType: 'DED', location: 'Edson, AB', milepost: 112.8, subdivision: 'Edson', timestamp: '2026-05-14 10:55', reading: 'DED Level 2 ALARM — Contact detected at rail head level. Dragging brake rigging confirmed. Train L50251-05 stopped immediately at MP 112.8. HAZMAT car — emergency response protocol activated.', status: 'ALARM', trainId: 'L50251-05' },
+      { detectorId: 'DED-EDS-040', detectorType: 'DED', location: 'Evansburg, AB', milepost: 40.1, subdivision: 'Edson', timestamp: '2026-05-14 09:30', reading: 'DED Level 1 WARNING — Object detected above rail head clearance. Crew notified. Proceed at restricted speed to next inspection point.', status: 'ALERT', trainId: 'L50251-05' },
+      { detectorId: 'HBD-EDS-112', detectorType: 'HBD', location: 'Edson, AB', milepost: 112.8, subdivision: 'Edson', timestamp: '2026-05-14 10:55', reading: 'All bearings normal — max 22°F above ambient', status: 'NORMAL', trainId: 'L50251-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0528', date: '2026-05-14', severity: 'CRITICAL', type: 'Dragging Equipment — DED Level 2 ALARM', description: 'DED Level 2 ALARM at Edson MP 112.8: contact detected at rail head level. Broken brake rigging (S-bracket) confirmed dragging. HAZMAT car (Class 3 Ethanol) — emergency response protocol activated. Train stopped immediately. Car set out at Edson mechanical track. Brake rigging replacement in progress.', detectedBy: 'DED-EDS-112', location: 'Edson, AB — Edson Sub MP 112.8', resolved: false, workOrderId: 'WO-2026-9325' },
+    ],
+  },
+
+  // ── Car 24: CN Gondola — IN_TRANSIT, Ruel Sub, HBD WM51 §4.1.2 (second hottest <45%) ──
+  // Caught by AAR S-6001 §4.1.2: Kt>3.5 AND second hottest bearing Kt<45% of this bearing
+  {
+    carNumber: 'CN 882341',
+    reportingMark: 'CN',
+    carType: 'Gondola',
+    owner: 'CN',
+    builtYear: 2014,
+    capacity: 100,
+    length: 52,
+    hazmat: false,
+    currentTrainId: 'T22151-05',
+    currentStatus: 'IN_TRANSIT',
+    currentLocation: 'Ruel Sub MP 201.4 (STOPPED)',
+    lastSeen: '2026-05-14 13:00',
+    consistHistory: [
+      { trainId: 'T22151-05', date: '2026-05-14', position: 18, totalCars: 78, origin: 'Gordon Yard', destination: 'Symington Yard', subdivision: 'Ruel', weight: 200000 },
+      { trainId: 'T22050-04', date: '2026-05-09', position: 22, totalCars: 82, origin: 'Symington Yard', destination: 'Gordon Yard', subdivision: 'Ruel', weight: 198000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'HBD-RUL-200', detectorType: 'HBD', location: 'Chapleau, ON', milepost: 200.0, subdivision: 'Ruel', timestamp: '2026-05-14 12:55', reading: 'WM51 ALARM §4.1.2 — Axle B1-Right: Kt=4.1 (>3.5). Second hottest bearing Kt=1.7 (41% of 4.1, below 45% threshold). Mandatory set-out required.', status: 'ALARM', trainId: 'T22151-05' },
+      { detectorId: 'HBD-RUL-150', detectorType: 'HBD', location: 'White River, ON', milepost: 150.0, subdivision: 'Ruel', timestamp: '2026-05-14 11:30', reading: 'Axle B1-Right: Kt=2.8, Ke=1.6 — elevated, monitoring.', status: 'NORMAL', trainId: 'T22151-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0534', date: '2026-05-14', severity: 'CRITICAL', type: 'Hot Bearing — WM51 K-value Alarm §4.1.2', description: 'AAR S-6001 §4.1.2 WM51 qualifying indication at Chapleau HBD (Ruel Sub MP 200.0): Axle B1-Right Kt=4.1 (>3.5 threshold). Second hottest bearing Kt=1.7, which is 41% of the alarm bearing — below the 45% threshold. Mandatory set-out executed at Chapleau. Bearing inspection ordered.', detectedBy: 'HBD-RUL-200', location: 'Chapleau, ON — Ruel Sub MP 200.0', resolved: false, workOrderId: 'WO-2026-9341' },
+    ],
+  },
+
+  // ── Car 25: CSXT Boxcar — SHOP, HBD WM51 §4.1.3 (3-pass rolling window rule) ──
+  // Caught by AAR S-6001 §4.1.3: 3 HBD passings within 240h rolling window
+  {
+    carNumber: 'CSXT 8812',
+    reportingMark: 'CSXT',
+    carType: 'Boxcar',
+    owner: 'CSXT',
+    builtYear: 2008,
+    capacity: 70,
+    length: 50,
+    hazmat: false,
+    currentStatus: 'SHOP',
+    currentLocation: 'Symington Yard — Shop Bay 4',
+    lastSeen: '2026-05-14 09:00',
+    consistHistory: [
+      { trainId: 'M30151-05', date: '2026-05-14', position: 55, totalCars: 113, origin: 'Symington Yard', destination: 'Walker Yard', subdivision: 'Rivers', weight: 140000 },
+      { trainId: 'M30050-04', date: '2026-05-12', position: 48, totalCars: 113, origin: 'Walker Yard', destination: 'Symington Yard', subdivision: 'Rivers', weight: 138000 },
+      { trainId: 'M29950-03', date: '2026-05-10', position: 52, totalCars: 108, origin: 'Symington Yard', destination: 'Walker Yard', subdivision: 'Rivers', weight: 136000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'HBD-RVR-044', detectorType: 'HBD', location: 'Brandon, MB', milepost: 44.1, subdivision: 'Rivers', timestamp: '2026-05-14 08:55', reading: 'WM51 ALARM §4.1.3 — Axle A2-Left: Kt=4.2, Ke=2.1, temp 98°F above ambient. Pass 1 of 3-pass rolling window rule triggered. Combined with 2 prior reads (Kt≥1.5, Ke≥2) within 240h window. Mandatory set-out required.', status: 'ALARM', trainId: 'M30151-05' },
+      { detectorId: 'HBD-RVR-090', detectorType: 'HBD', location: 'Brandon, MB', milepost: 90.3, subdivision: 'Rivers', timestamp: '2026-05-12 14:20', reading: 'Axle A2-Left: Kt=1.8, Ke=2.3 — rolling window pass 2 of 3. Monitoring.', status: 'ALERT', trainId: 'M30050-04' },
+      { detectorId: 'HBD-RVR-090', detectorType: 'HBD', location: 'Brandon, MB', milepost: 90.3, subdivision: 'Rivers', timestamp: '2026-05-10 11:05', reading: 'Axle A2-Left: Kt=1.6, Ke=2.1 — rolling window pass 3 of 3. Monitoring.', status: 'ALERT', trainId: 'M29950-03' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0548', date: '2026-05-14', severity: 'CRITICAL', type: 'Hot Bearing — WM51 §4.1.3 Rolling Window Alarm', description: 'AAR S-6001 §4.1.3 WM51 qualifying indication: 3 HBD passings within 240-hour rolling window. Pass 1 (2026-05-10): Kt=1.6, Ke=2.1. Pass 2 (2026-05-12): Kt=1.8, Ke=2.3. Pass 3 (2026-05-14): Kt=4.2, Ke=2.1, temp 98°F above ambient — satisfies §4.1.3 primary condition (Kt≥4.0, temp≥95°F above ambient, Ke≥2). Mandatory set-out executed at Symington Yard. Bearing replacement in progress.', detectedBy: 'HBD-RVR-044', location: 'Brandon, MB — Rivers Sub MP 44.1', resolved: false, workOrderId: 'WO-2026-9355' },
+    ],
+  },
+
+  // ── Car 26: NS Gondola — IN_TRANSIT, Bala Sub, WILD Rule 41 65–89 kips (set-out at next yard) ──
+  {
+    carNumber: 'NS 441204',
+    reportingMark: 'NS',
+    carType: 'Gondola',
+    owner: 'NS',
+    builtYear: 2011,
+    capacity: 100,
+    length: 52,
+    hazmat: false,
+    currentTrainId: 'G87351-05',
+    currentStatus: 'IN_TRANSIT',
+    currentLocation: 'Bala Sub MP 88.2',
+    lastSeen: '2026-05-14 14:30',
+    consistHistory: [
+      { trainId: 'G87351-05', date: '2026-05-14', position: 14, totalCars: 42, origin: 'MacMillan Yard', destination: 'Capreol Yard', subdivision: 'Bala', weight: 200000 },
+      { trainId: 'G87250-04', date: '2026-05-09', position: 19, totalCars: 55, origin: 'Capreol Yard', destination: 'MacMillan Yard', subdivision: 'Bala', weight: 198000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'WILD-BAL-060', detectorType: 'WILD', location: 'Gravenhurst, ON', milepost: 60.0, subdivision: 'Bala', timestamp: '2026-05-14 13:55', reading: 'Rule 41 ALERT — Axle A1-Left: 74 kips. In 65–89 kip range. Car must be set out at next yard stop (Capreol) for wheel inspection.', status: 'ALERT', trainId: 'G87351-05' },
+      { detectorId: 'HBD-BAL-088', detectorType: 'HBD', location: 'Huntsville, ON', milepost: 88.2, subdivision: 'Bala', timestamp: '2026-05-14 14:28', reading: 'All bearings normal — max 19°F above ambient', status: 'NORMAL', trainId: 'G87351-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0562', date: '2026-05-14', severity: 'WARNING', type: 'Wheel Impact — Rule 41 ALERT', description: 'AAR Rule 41 ALERT: Axle A1-Left wheel impact 74 kips at Gravenhurst WILD (Bala Sub MP 60.0). In 65–89 kip range — car must be set out at next yard stop for inspection. Car continuing to Capreol Yard under monitoring.', detectedBy: 'WILD-BAL-060', location: 'Gravenhurst, ON — Bala Sub MP 60.0', resolved: false },
+    ],
+  },
+
+  // ── Car 27: CP Covered Hopper — IN_TRANSIT, Wainwright Sub, HBD WM52 (ABD/TADS Rank 2) ──
+  // Caught by AAR S-6001 §4.2.1: Kt>1.7 AND Ke>2 AND TADS defect rank ≥2
+  {
+    carNumber: 'CP 884412',
+    reportingMark: 'CP',
+    carType: 'Hopper',
+    owner: 'CP',
+    builtYear: 2015,
+    capacity: 110,
+    length: 56,
+    hazmat: false,
+    currentTrainId: 'H22351-05',
+    currentStatus: 'IN_TRANSIT',
+    currentLocation: 'Wainwright Sub MP 122.4',
+    lastSeen: '2026-05-14 14:00',
+    consistHistory: [
+      { trainId: 'H22351-05', date: '2026-05-14', position: 55, totalCars: 88, origin: 'Walker Yard', destination: 'Biggar, SK', subdivision: 'Wainwright', weight: 220000 },
+      { trainId: 'H22250-04', date: '2026-05-09', position: 58, totalCars: 92, origin: 'Biggar, SK', destination: 'Walker Yard', subdivision: 'Wainwright', weight: 218000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'TADS-WAI-088', detectorType: 'TADS', location: 'Hardisty, AB', milepost: 88.0, subdivision: 'Wainwright', timestamp: '2026-05-14 12:44', reading: 'WM52 ALERT §4.2.1 — Axle B2-Right: Kt=2.2 (>1.7), Ke=2.6 (>2), TADS defect rank 2 (moderate spalling on cup running surface). Monitoring initiated. Set-out at next yard if Kt increases.', status: 'ALERT', trainId: 'H22351-05' },
+      { detectorId: 'HBD-WAI-088', detectorType: 'HBD', location: 'Hardisty, AB', milepost: 88.0, subdivision: 'Wainwright', timestamp: '2026-05-14 12:44', reading: 'Axle B2-Right: 44°F above ambient — elevated, consistent with TADS indication.', status: 'ALERT', trainId: 'H22351-05' },
+      { detectorId: 'HBD-WAI-044', detectorType: 'HBD', location: 'Wainwright, AB', milepost: 44.0, subdivision: 'Wainwright', timestamp: '2026-05-14 11:30', reading: 'Axle B2-Right: Kt=1.9, Ke=2.1 — first indication. Monitoring.', status: 'NORMAL', trainId: 'H22351-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0571', date: '2026-05-14', severity: 'WARNING', type: 'Bearing Defect — WM52 K-value Alert', description: 'AAR S-6001 §4.2.1 WM52 qualifying indication at Hardisty TADS/HBD (Wainwright Sub MP 88.0): Axle B2-Right Kt=2.2 (>1.7), Ke=2.6 (>2), TADS acoustic defect rank 2 (moderate spalling on cup running surface). Car flagged for set-out at Biggar, SK. Owner (CP) notified.', detectedBy: 'TADS-WAI-088', location: 'Hardisty, AB — Wainwright Sub MP 88.0', resolved: false },
+    ],
+  },
+
+  // ── Car 28: CN Flatcar — IN_TRANSIT, Edson Sub, WILD 50–64 kips (ELEVATED, owner notified) ──
+  {
+    carNumber: 'CN 558412',
+    reportingMark: 'CN',
+    carType: 'Flatcar',
+    owner: 'CN',
+    builtYear: 2016,
+    capacity: 80,
+    length: 89,
+    hazmat: false,
+    currentTrainId: 'L50251-05',
+    currentStatus: 'IN_TRANSIT',
+    currentLocation: 'Edson Sub MP 112.8',
+    lastSeen: '2026-05-14 14:15',
+    consistHistory: [
+      { trainId: 'L50251-05', date: '2026-05-14', position: 66, totalCars: 148, origin: 'Walker Yard', destination: 'MacMillan Yard', subdivision: 'Edson', weight: 160000 },
+      { trainId: 'L50150-04', date: '2026-05-09', position: 70, totalCars: 144, origin: 'MacMillan Yard', destination: 'Walker Yard', subdivision: 'Edson', weight: 158000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'WILD-EDS-080', detectorType: 'WILD', location: 'Hinton, AB', milepost: 80.2, subdivision: 'Edson', timestamp: '2026-05-14 13:10', reading: 'Rule 41 ELEVATED — Axle B1-Right: 62 kips. In 50–64 kip range. No mandatory action. Car owner (CN) notified. Monitor at next detector.', status: 'NORMAL', trainId: 'L50251-05' },
+      { detectorId: 'HBD-EDS-112', detectorType: 'HBD', location: 'Edson, AB', milepost: 112.8, subdivision: 'Edson', timestamp: '2026-05-14 14:05', reading: 'All bearings normal — max 16°F above ambient', status: 'NORMAL', trainId: 'L50251-05' },
+    ],
+    defectFlags: [],
+  },
+
+  // ── Car 29: TTX Flatcar — SHOP, ABD/TADS Rank 4 (critical defect, immediate set-out) ──
+  // Caught by AAR S-6000 Level-1 indication: orange peel surface + spalling ≥1.5 in²
+  {
+    carNumber: 'TTX 228841',
+    reportingMark: 'TTX',
+    carType: 'Flatcar',
+    owner: 'TTX',
+    builtYear: 2012,
+    capacity: 80,
+    length: 89,
+    hazmat: false,
+    currentStatus: 'SHOP',
+    currentLocation: 'Walker Yard — Wheel Shop Bay 1',
+    lastSeen: '2026-05-13 18:00',
+    consistHistory: [
+      { trainId: 'L50150-04', date: '2026-05-13', position: 12, totalCars: 144, origin: 'MacMillan Yard', destination: 'Walker Yard', subdivision: 'Edson', weight: 160000 },
+      { trainId: 'L50050-03', date: '2026-05-08', position: 15, totalCars: 152, origin: 'Walker Yard', destination: 'MacMillan Yard', subdivision: 'Edson', weight: 158000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'TADS-EDS-080', detectorType: 'TADS', location: 'Hinton, AB', milepost: 80.2, subdivision: 'Edson', timestamp: '2026-05-13 16:44', reading: 'ABD/TADS Rank 4 ALARM — Axle A2-Right: S-6000 Level-1 indication. Orange peel surface detected on cup running surface. Spalling area estimated 2.1 in² (exceeds 1.5 in² threshold). Immediate set-out required.', status: 'ALARM', trainId: 'L50150-04' },
+      { detectorId: 'HBD-EDS-112', detectorType: 'HBD', location: 'Edson, AB', milepost: 112.8, subdivision: 'Edson', timestamp: '2026-05-13 17:10', reading: 'Axle A2-Right: Kt=1.4, Ke=1.8 — consistent with TADS indication. Monitoring.', status: 'NORMAL', trainId: 'L50150-04' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0588', date: '2026-05-13', severity: 'CRITICAL', type: 'Bearing Defect — ABD/TADS Rank 4 (S-6000 Level-1)', description: 'AAR S-6000 Level-1 indication at Hinton TADS (Edson Sub MP 80.2): Axle A2-Right bearing shows orange peel surface on cup running surface AND spalling area 2.1 in² (exceeds 1.5 in² mandatory removal threshold per S-6000 §3.1). TADS defect rank 4 — critical, immediate set-out required. Car pulled from L50150-04 at Walker Yard. Bearing replacement in progress.', detectedBy: 'TADS-EDS-080', location: 'Hinton, AB — Edson Sub MP 80.2', resolved: false, workOrderId: 'WO-2026-9401' },
+    ],
+  },
+
+  // ── Car 30: CN Gondola — IN_TRANSIT, Kingston Sub, WIM overweight (axle load violation) ──
+  {
+    carNumber: 'CN 334812',
+    reportingMark: 'CN',
+    carType: 'Gondola',
+    owner: 'CN',
+    builtYear: 2012,
+    capacity: 100,
+    length: 52,
+    hazmat: false,
+    currentTrainId: 'Q11451-05',
+    currentStatus: 'IN_TRANSIT',
+    currentLocation: 'Kingston Sub MP 188.4',
+    lastSeen: '2026-05-14 14:22',
+    consistHistory: [
+      { trainId: 'Q11451-05', date: '2026-05-14', position: 71, totalCars: 85, origin: 'MacMillan Yard', destination: 'Taschereau Yard', subdivision: 'Kingston', weight: 286000 },
+      { trainId: 'Q11350-04', date: '2026-05-10', position: 68, totalCars: 92, origin: 'Taschereau Yard', destination: 'MacMillan Yard', subdivision: 'Kingston', weight: 284000 },
+    ],
+    waysideReadings: [
+      { detectorId: 'WIM-KGS-050', detectorType: 'WIM', location: 'Cobourg, ON', milepost: 50.1, subdivision: 'Kingston', timestamp: '2026-05-14 12:10', reading: 'WIM ALERT — Gross weight 286,000 lbs (143 tons). Axle 3 load: 36.8 tons (exceeds 33-ton single-axle limit). Car owner notified. Proceed to next yard for weight verification.', status: 'ALERT', trainId: 'Q11451-05' },
+      { detectorId: 'HBD-KGS-050', detectorType: 'HBD', location: 'Cobourg, ON', milepost: 50.1, subdivision: 'Kingston', timestamp: '2026-05-14 12:10', reading: 'All bearings normal — max 24°F above ambient', status: 'NORMAL', trainId: 'Q11451-05' },
+      { detectorId: 'AEI-KGS-100', detectorType: 'AEI', location: 'Belleville, ON', milepost: 100.4, subdivision: 'Kingston', timestamp: '2026-05-14 12:58', reading: 'Tag read confirmed — CN 334812', status: 'NORMAL', trainId: 'Q11451-05' },
+    ],
+    defectFlags: [
+      { flagId: 'DEF-2026-0601', date: '2026-05-14', severity: 'WARNING', type: 'Overweight — WIM Axle Load Violation', description: 'WIM alert at Cobourg (Kingston Sub MP 50.1): Axle 3 load 36.8 tons exceeds 33-ton single-axle limit. Gross weight 286,000 lbs. Car owner (CN) notified. Car to be weighed and adjusted at Taschereau Yard.', detectedBy: 'WIM-KGS-050', location: 'Cobourg, ON — Kingston Sub MP 50.1', resolved: false },
+    ],
+  },
 ];
+
 
 // ─── HOS Summary Stats ─────────────────────────────────────────────────────
 

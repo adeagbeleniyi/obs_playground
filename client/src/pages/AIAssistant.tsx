@@ -99,24 +99,75 @@ You have deep knowledge of CN Rail's OT systems: I-ETMS (Integrated Electronic T
 Current date/time: ${now.toISOString()} (Eastern Time)
 
 ═══════════════════════════════════════════════════════════════
-DETECTOR THRESHOLDS (reference)
+AAR WAYSIDE DETECTOR RULES (AAR Manual of Standards & Field Manual)
 ═══════════════════════════════════════════════════════════════
-WILD (Wheel Impact Load Detector):
-  ALARM  >100 kips — mandatory set-out, train must stop
-  ALERT  70–100 kips — investigate at next terminal
-  ELEVATED 50–70 kips — monitor, no mandatory action
-  NORMAL <50 kips — routine
 
-HBD (Hot Box Detector):
-  ALARM  >60°C above ambient — mandatory set-out
-  ALERT  40–60°C above ambient — investigate
-  WATCH  20–40°C above ambient — monitor
-  NORMAL <20°C above ambient
+── AAR FIELD MANUAL RULE 41 — WILD (Wheel Impact Load Detector) ──
+WILD measures dynamic wheel-rail impact force in kips (1 kip = 1,000 lbf).
+  ELEVATED  50–64 kips  — No mandatory action. Car owner notified. Monitor at next detector.
+  ALERT     65–89 kips  — Car MUST be set out at next yard stop for wheel inspection.
+  ALARM     ≥90 kips    — MANDATORY IMMEDIATE SET-OUT. Train must stop. Car removed from consist.
+Note: A car progressing 58→72→96 kips across consecutive detectors indicates a developing flat spot.
 
-DED (Dragging Equipment Detector): Binary PASS/FAIL
-AEI (Automatic Equipment Identification): RFID tag read confirmation
-TADS (Truck Angle Detection System): Truck hunting / lateral instability
-WIM (Weigh-in-Motion): Gross weight per axle in tons
+── AAR S-6001 — HBD (Hot Box Detector) K-VALUE RULES ──
+K-values are statistical outlier indicators. Two K-values are computed:
+  Kt (Train-side K-value): Kt = (Tb − Q3_t) / (Q3_t − Q1_t)
+    where Tb = bearing temperature, Q3_t/Q1_t = 3rd/1st quartile of ALL bearings on that train side.
+    Denominator minimum = 12.5°F.
+  Ke (Equipment K-value): Ke = (Kt − Q3_e) / (Q3_e − Q1_e)
+    using all bearings on that equipment (car) as a basis.
+
+WM51 — Mandatory Set-Out (any ONE of three conditions):
+  §4.1.1: Kt > 3.5 AND Ke > 2 AND bearing is ≥50°F hotter than any other bearing on the car.
+  §4.1.2: Kt > 3.5 AND second hottest bearing Kt < 45% of this bearing's Kt.
+  §4.1.3: 3 HBD passings within a rolling 240-hour window where:
+          — Pass A: Kt ≥ 4.0, temp ≥95°F above ambient, Ke ≥ 2 (primary condition)
+          — Pass B & C: Kt ≥ 1.5, Ke ≥ 2 (can occur in any order relative to Pass A)
+
+WM52 — Alert / Monitor Closely:
+  §4.2.1: Kt > 1.7 AND (Ke > 2 OR second hottest bearing Kt < 45%) AND TADS defect rank ≥ 2.
+
+Absolute temperature thresholds (above ambient):
+  NORMAL    <40°F above ambient
+  ELEVATED  40–59°F above ambient — monitor, notify owner
+  ALERT     60–94°F above ambient — set out at next yard
+  ALARM     ≥95°F above ambient   — mandatory immediate set-out
+  CRITICAL  ≥200°F above ambient  — train must stop immediately
+
+── AAR S-6000 — ABD/TADS (Acoustic Bearing Detector / Truck Angle Detection System) ──
+TADS Defect Ranks:
+  Rank 0: No defect
+  Rank 1: Minor anomaly — monitor
+  Rank 2: Moderate defect — flag for WM52 evaluation
+  Rank 3: Significant defect — mandatory set-out at next yard
+  Rank 4: Critical defect — immediate set-out required
+
+S-6000 Level-1 Indications (mandatory removal):
+  — Total spalled/water-etched area ≥1.5 in² on any one cup or cone running surface
+  — Total spalled/water-etched area ≥1.0 in² on one surface AND any spalled area on another
+  — Any area of orange peel surface
+  — Loose component: cone backface wear >0.010 in, turning on journal, oversize cone bore
+
+── DED (Dragging Equipment Detector) ──
+  Level 1 (Warning): Object detected above rail head clearance — proceed at restricted speed to next inspection point.
+  Level 2 (Alarm):   Object at or below rail head level — train must STOP immediately. Full inspection required.
+  Level 3 (Emergency): Multiple sensors triggered — emergency stop, emergency response protocol.
+Common causes: broken brake rigging, loose chains, bent grab irons, dragging brake shoes.
+
+── WDD (Wheel Defect Detector) — Flat Wheel ──
+  <1/16 in: Normal
+  1/16–1/8 in: Monitor (notify owner)
+  >1/8 in: Set out at next yard for wheel shop
+  >1/4 in (compound flat): Mandatory immediate set-out
+
+── WIM (Weigh-in-Motion) ──
+  Single axle load limit: 33 tons (66,000 lbs)
+  Gross car weight limit: 263,000 lbs (loaded) — varies by car type and track class
+  Overweight cars must be weighed and adjusted at next yard.
+
+── AEI (Automatic Equipment Identification) ──
+  RFID tag read confirmation. Tracks car identity, position, and consist membership.
+  Failed reads indicate damaged/missing AEI tag — car must be visually identified.
 
 PTC States: ACTIVE (normal), DEGRADED (partial), FAILED (no PTC protection)
 HOS Limit: 12h for engineers/conductors, 10h for other crew
@@ -192,16 +243,19 @@ GCP (Grade Crossing Predictor): OPERATIONAL — 847 crossings monitored
 ═══════════════════════════════════════════════════════════════
 RECENT SIGNIFICANT EVENTS (last 24h)
 ═══════════════════════════════════════════════════════════════
-2026-05-14 09:41 | WILD ALARM | TTX 891204 Axle B1 | 118 kips | Kingston Sub MP 188 | Train Q11451-05 stopped for set-out
-2026-05-14 08:23 | HBD ALERT  | BNSF 584291 | 47°C above ambient | Edson Sub MP 88 | Train M30151-05 continuing to MacMillan
+2026-05-14 10:55 | DED LEVEL 2 ALARM | UP 448812 (HAZMAT Class 3 Ethanol) | Edson Sub MP 112.8 | Dragging brake rigging at rail head level. Train L50251-05 stopped. Emergency response activated. Car set out.
+2026-05-14 10:30 | HBD WM51 ALARM §4.1.1 | CN 448821 | Kingston Sub MP 100.4 | Kt=4.8, Ke=3.2, bearing 118°F above ambient (62°F hotter than next hottest). Mandatory set-out. Car pulled from Q11451-05.
+2026-05-14 09:15 | HBD WM51 ALARM §4.1.3 | CSXT 8812 | Rivers Sub MP 44.1 | 3-pass rolling window triggered. Kt=4.2, Ke=2.1, temp 98°F above ambient. Mandatory set-out at Symington.
+2026-05-14 08:55 | TADS/ABD RANK 4 ALARM | TTX 228841 | Edson Sub MP 80.2 | S-6000 Level-1: orange peel surface + 2.1 in² spalling. Immediate set-out. Car pulled from L50150-04 at Walker.
+2026-05-14 08:23 | HBD WM52 ALERT §4.2.1 | CP 884412 | Wainwright Sub MP 88.0 | Kt=2.2, Ke=2.6, TADS rank 2. Car flagged for set-out at Biggar, SK. Owner notified.
 2026-05-14 07:15 | PTC DEGRADED | Train L50251-05 | I-ETMS comm loss | Edson Sub MP 44 | Crew notified
 2026-05-14 06:02 | COBRA DEGRADED | Jasper repeater site | Signal strength -87 dBm | Edson Sub MP 112
 2026-05-14 05:30 | HOS WARNING | Train G87351-05 crew | 2h 15m remaining | Rivers Sub MP 71
-2026-05-14 04:18 | WILD ELEVATED | CN 714823 Axle A2 | 63 kips | Bala Sub MP 34 | Below alert threshold, monitoring
-2026-05-14 03:45 | DED FAIL | CN 412847 | Kingston Sub MP 155 | Train Q11451-05 — equipment inspected, cleared
-2026-05-14 02:10 | YARD CAPACITY | MacMillan Yard | 89% capacity | 3 trains queued for classification
-2026-05-13 23:55 | CREW CHANGE | Train M30151-05 | Symington Yard | New crew: J. Tremblay (Eng), M. Singh (Cond)
-2026-05-13 22:30 | WILD ELEVATED | TTGX 298441 Axle C2 | 58 kips | Kingston Sub MP 201 | Monitoring
+2026-05-13 21:44 | WILD RULE 41 ALARM | BNSF 771204 Axle B2-Left | 96 kips | Capreol Sub MP 178.4 | Exceeds 90 kip immediate set-out threshold. Train P33151-05 stopped. Progressive: 58→72→96 kips.
+2026-05-14 13:55 | WILD RULE 41 ALERT | NS 441204 Axle A1-Left | 74 kips | Bala Sub MP 60.0 | 65–89 kip range. Set-out at Capreol ordered. Car continuing under monitoring.
+2026-05-14 12:55 | HBD WM51 ALARM §4.1.2 | CN 882341 | Ruel Sub MP 200.0 | Kt=4.1, second hottest bearing Kt=1.7 (41%, below 45% threshold). Mandatory set-out at Chapleau.
+2026-05-14 12:10 | WIM ALERT | CN 334812 | Kingston Sub MP 50.1 | Axle 3 load 36.8 tons (exceeds 33-ton limit). Owner notified. Proceed to Taschereau for weight verification.
+2026-05-14 04:18 | WILD ELEVATED | CN 558412 Axle B1-Right | 62 kips | Edson Sub MP 80.2 | Rule 41 ELEVATED (50–64 kips). No mandatory action. Owner notified. Monitoring.
 
 ═══════════════════════════════════════════════════════════════
 INSTRUCTIONS
@@ -223,26 +277,32 @@ const SUGGESTED_PROMPTS = [
   {
     category: "Wayside Detectors",
     icon: <Activity size={13} className="text-amber-400" />,
-    label: "WILD above 50 kips",
-    prompt: "List all cars with WILD readings above 50 kips in the last 7 days, including those below the 70-kip alert threshold. For each car, show the reading, location, subdivision, and whether it triggered a mandatory set-out.",
+    label: "WILD Rule 41 summary",
+    prompt: "Summarize all cars with WILD readings in the last 7 days by Rule 41 category: ELEVATED (50–64 kips), ALERT (65–89 kips), and ALARM (≥90 kips). For each car, show the reading, axle, location, subdivision, and the mandatory action taken (if any).",
   },
   {
     category: "Wayside Detectors",
     icon: <Thermometer size={13} className="text-red-400" />,
-    label: "HBD trending to alarm",
-    prompt: "Are there any cars with HBD readings that are trending upward and approaching the 60°C alarm threshold? Which ones should I monitor closely?",
+    label: "HBD K-value alarms",
+    prompt: "Which cars have triggered HBD WM51 or WM52 K-value qualifying indications? For each, explain which S-6001 section was triggered (§4.1.1, §4.1.2, or §4.1.3 rolling window), the Kt and Ke values, temperature above ambient, and whether a mandatory set-out was executed.",
   },
   {
     category: "Wayside Detectors",
     icon: <AlertTriangle size={13} className="text-red-400" />,
     label: "All active alarms",
-    prompt: "What are all the active ALARM and ALERT conditions across the network right now? Include car number, detector type, reading value, location, and which train the car is in.",
+    prompt: "What are all the active ALARM and ALERT conditions across the network right now? Include car number, detector type, reading value, location, and which train the car is in. Classify each by AAR rule (Rule 41, WM51, WM52, S-6000 Level-1, DED Level 2, etc.).",
   },
   {
     category: "Wayside Detectors",
     icon: <Gauge size={13} className="text-orange-400" />,
-    label: "Detector comparison by sub",
-    prompt: "Compare the number of WILD and HBD detections across all subdivisions in the last 7 days. Which subdivision has the highest rate of elevated readings per car passage?",
+    label: "DED & dragging equipment",
+    prompt: "Are there any active DED (Dragging Equipment Detector) alarms or recent events? For each, explain the DED level (1=warning, 2=alarm, 3=emergency), what was detected, the required action, and whether any HAZMAT cars were involved.",
+  },
+  {
+    category: "Wayside Detectors",
+    icon: <Activity size={13} className="text-purple-400" />,
+    label: "ABD/TADS bearing defects",
+    prompt: "Which cars have ABD or TADS acoustic bearing defect indications? For each, give the TADS defect rank (0–4), the S-6000 Level-1 criteria met (if any), the affected axle, and whether immediate set-out was required.",
   },
   {
     category: "Fleet & Cars",
