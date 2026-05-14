@@ -332,6 +332,7 @@ export default function CarSearch() {
   const openCarIncidents = carIncidents.filter(i => i.incidentStatus !== 'resolved');
 
   return (
+    <Layout>
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
@@ -508,5 +509,6 @@ export default function CarSearch() {
         </div>
       </div>
     </div>
+    </Layout>
   );
 }
