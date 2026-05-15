@@ -21,6 +21,7 @@ import AIAssistant from "./pages/AIAssistant";
 import AlertRules from "./pages/AlertRules";
 import WatchRules from "./pages/WatchRules";
 import CrossingMonitoring from "./pages/CrossingMonitoring";
+import Reports from "./pages/Reports";
 function Router() {
   // make sure to consider if you need authentication for certain routes
   return (
@@ -43,6 +44,7 @@ function Router() {
       <Route path={"/alert-rules"} component={AlertRules} />
       <Route path={"/watch-rules"} component={WatchRules} />
       <Route path={"/crossings"} component={CrossingMonitoring} />
+      <Route path={"/reports"} component={Reports} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

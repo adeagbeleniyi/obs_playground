@@ -19,6 +19,7 @@ import {
   Bot,
   Bell,
   Eye,
+  FileText,
 } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 
@@ -46,6 +47,7 @@ const navItems: NavItem[] = [
   { path: "/crossings", label: "Crossing Monitoring", icon: <Radio size={18} /> },
   { path: "/alert-rules", label: "Alert Rules", icon: <Bell size={18} /> },
   { path: "/watch-rules", label: "My Watch Rules", icon: <Eye size={18} /> },
+  { path: "/reports", label: "Reports", icon: <FileText size={18} /> },
 ];
 
 const systemStatusItems = [

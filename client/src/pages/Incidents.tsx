@@ -666,7 +666,7 @@ type SortDir = 'asc' | 'desc';
 export default function Incidents() {
   const [selectedRca, setSelectedRca] = useState<{ rca: RootCauseExplanation; title: string } | null>(null);
   const [selectedDefect, setSelectedDefect] = useState<WaysideIncident | null>(null);
-  const [activeTab, setActiveTab] = useState<'ot' | 'car' | 'reports'>('ot');
+  const [activeTab, setActiveTab] = useState<'ot' | 'car'>('ot');
 
   // Car Defects filter/sort state
   const [filterDetector, setFilterDetector] = useState<string>('all');
@@ -775,9 +775,7 @@ export default function Incidents() {
             Car Defect Incidents ({allCarDefects.length})
             {alarmCount > 0 && <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-bold">{alarmCount}</span>}
           </button>
-          <button onClick={() => setActiveTab('reports')} className={`px-4 py-2 rounded text-xs font-semibold transition-colors flex items-center gap-1.5 ${activeTab === 'reports' ? 'bg-sky-600 text-white' : 'bg-muted text-muted-foreground hover:text-foreground'}`}>
-            <Download size={12}/>Reports &amp; Export
-          </button>
+
         </div>
 
         {/* ── OT Incidents Table ── */}
@@ -895,91 +893,7 @@ export default function Incidents() {
           </div>
         )}
 
-        {/* ── Reports Tab ── */}
-        {activeTab === 'reports' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              {/* OT Incidents Report */}
-              <div className="bg-card border border-border rounded p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded bg-amber-500/20 flex items-center justify-center"><FileText size={14} className="text-amber-400"/></div>
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">OT System Incidents</div>
-                    <div className="text-[10px] text-muted-foreground">{incidents.length} incidents · Dynatrace Davis AI</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">Open</span><div className="text-red-400 font-bold font-mono">{incidents.filter(i => i.status === 'open').length}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">Resolved</span><div className="text-emerald-400 font-bold font-mono">{incidents.filter(i => i.status === 'resolved' || i.status === 'auto-resolved').length}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">AI Resolved</span><div className="text-sky-400 font-bold font-mono">{incidents.filter(i => i.aiResolved).length}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">Avg MTTR</span><div className="text-foreground font-bold font-mono">{Math.round(incidents.filter(i => i.mttr).reduce((s, i) => s + (i.mttr || 0), 0) / incidents.filter(i => i.mttr).length)}m</div></div>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button onClick={() => exportOTCSV(incidents)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30">
-                    <Download size={11}/>Export CSV
-                  </button>
-                  <button onClick={() => exportReportHTML(incidents, allCarDefects)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-medium bg-sky-500/20 text-sky-400 border border-sky-500/30 hover:bg-sky-500/30">
-                    <FileText size={11}/>Full Report (HTML)
-                  </button>
-                </div>
-              </div>
 
-              {/* Car Defect Report */}
-              <div className="bg-card border border-border rounded p-5 space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded bg-orange-500/20 flex items-center justify-center"><Gauge size={14} className="text-orange-400"/></div>
-                  <div>
-                    <div className="text-sm font-semibold text-foreground">Car Defect Incidents</div>
-                    <div className="text-[10px] text-muted-foreground">{allCarDefects.length} incidents · Wayside Detectors</div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">ALARM</span><div className="text-red-400 font-bold font-mono">{alarmCount}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">ALERT</span><div className="text-amber-400 font-bold font-mono">{alertCount}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">HBD</span><div className="text-orange-400 font-bold font-mono">{allCarDefects.filter(i => i.detectorType === 'HBD').length}</div></div>
-                  <div className="p-2 rounded bg-muted/20 border border-border"><span className="text-muted-foreground">WILD</span><div className="text-yellow-400 font-bold font-mono">{allCarDefects.filter(i => i.detectorType === 'WILD').length}</div></div>
-                </div>
-                <div className="flex gap-2 pt-1">
-                  <button onClick={() => exportCarDefectCSV(allCarDefects)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30">
-                    <Download size={11}/>Export CSV
-                  </button>
-                  <button onClick={() => exportReportHTML(incidents, allCarDefects)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded text-xs font-medium bg-sky-500/20 text-sky-400 border border-sky-500/30 hover:bg-sky-500/30">
-                    <FileText size={11}/>Full Report (HTML)
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Breakdown by detector type */}
-            <div className="bg-card border border-border rounded p-5">
-              <div className="text-sm font-semibold text-foreground mb-3">Breakdown by Detector Type</div>
-              <div className="grid grid-cols-3 gap-3">
-                {['HBD','WILD','DED','TADS','WIM','AEI'].map(dt => {
-                  const count = allCarDefects.filter(i => i.detectorType === dt).length;
-                  const alarms = allCarDefects.filter(i => i.detectorType === dt && i.status === 'ALARM').length;
-                  return (
-                    <div key={dt} className="p-3 rounded border border-border bg-muted/20">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-foreground">{dt}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{count} total</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[10px]">
-                        {alarms > 0 && <span className="text-red-400 font-medium">{alarms} ALARM</span>}
-                        {count - alarms > 0 && <span className="text-amber-400">{count - alarms} ALERT</span>}
-                        {count === 0 && <span className="text-muted-foreground">No detections</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Export note */}
-            <div className="p-3 rounded border border-border bg-border/10 text-[10px] text-muted-foreground">
-              <strong className="text-foreground">Export formats:</strong> CSV exports are compatible with Excel, Google Sheets, and any BI tool. The Full Report (HTML) can be opened in any browser and printed to PDF using the browser's print function (File → Print → Save as PDF).
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );
