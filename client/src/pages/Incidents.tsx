@@ -3,13 +3,13 @@ import { incidents } from "@/lib/mockData";
 import { rootCauseExplanations, type RootCauseExplanation } from "@/lib/observabilityData";
 import { waysideIncidents, type WaysideIncident } from "@/lib/waysideIncidents";
 import { carDatabase } from "@/lib/crewCarData";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   Bot, X, ChevronDown, ChevronUp, Layers, GitBranch, Lightbulb,
   Zap, Users, FileText, ExternalLink, Clock, Radio, AlertTriangle, Train,
   Gauge, ShieldAlert, CheckCircle2, Circle, Download, Filter, ArrowUpDown,
-  ChevronRight, Wrench, ClipboardList
+  ChevronRight, ChevronLeft, Wrench, ClipboardList, ChevronsLeft, ChevronsRight
 } from "lucide-react";
 
 const statusBadge: Record<string, string> = {
@@ -659,7 +659,45 @@ function WaysideIncidentRow({ inc, idx, onOpenRca }: { inc: WaysideIncident; idx
   );
 }
 
-// ─── Main Incidents Page ──────────────────────────────────────────────────────
+// ─── Pagination Bar ────────────────────────────────────────────────────────────────
+function IncidentsPaginationBar({ total, page, pageSize, onPage, onPageSize }: { total: number; page: number; pageSize: number; onPage: (p: number) => void; onPageSize: (s: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  const pages: (number | '...')[] = [];
+  if (totalPages <= 7) { for (let i = 1; i <= totalPages; i++) pages.push(i); }
+  else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5 border-t border-border bg-muted/10">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Rows per page:</span>
+        <select value={pageSize} onChange={e => { onPageSize(Number(e.target.value)); onPage(1); }} className="bg-card border border-border rounded px-1.5 py-0.5 text-xs text-foreground focus:outline-none">
+          {[10, 25, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span className="ml-2">{from}–{to} of {total}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPage(1)} disabled={page === 1} className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronsLeft size={13} /></button>
+        <button onClick={() => onPage(page - 1)} disabled={page === 1} className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronLeft size={13} /></button>
+        {pages.map((p, i) => p === '...' ? (
+          <span key={`e${i}`} className="px-1 text-xs text-muted-foreground">…</span>
+        ) : (
+          <button key={p} onClick={() => onPage(p as number)} className={`w-6 h-6 rounded text-xs font-medium transition-colors ${p === page ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{p}</button>
+        ))}
+        <button onClick={() => onPage(page + 1)} disabled={page === totalPages} className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronRight size={13} /></button>
+        <button onClick={() => onPage(totalPages)} disabled={page === totalPages} className="p-1 rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronsRight size={13} /></button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Incidents Page ────────────────────────────────────────────────────────────────
 type SortField = 'timestamp' | 'detectorType' | 'status' | 'subdivision' | 'severity';
 type SortDir = 'asc' | 'desc';
 
@@ -706,6 +744,16 @@ export default function Incidents() {
       return 0;
     });
   }, [allCarDefects, filterDetector, filterStatus, filterSubdivision, sortField, sortDir]);
+
+  // Pagination state
+  const [otPage, setOtPage] = useState(1);
+  const [otPageSize, setOtPageSize] = useState(25);
+  const [carPage, setCarPage] = useState(1);
+  const [carPageSize, setCarPageSize] = useState(25);
+  useEffect(() => { setCarPage(1); }, [filterDetector, filterStatus, filterSubdivision, sortField, sortDir]);
+
+  const pagedOtIncidents = useMemo(() => incidents.slice((otPage - 1) * otPageSize, otPage * otPageSize), [otPage, otPageSize]);
+  const pagedCarDefects = useMemo(() => filteredCarDefects.slice((carPage - 1) * carPageSize, carPage * carPageSize), [filteredCarDefects, carPage, carPageSize]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -796,11 +844,12 @@ export default function Incidents() {
                 </tr>
               </thead>
               <tbody>
-                {incidents.map((inc, idx) => {
+                {pagedOtIncidents.map((inc, idx) => {
                   const hasRca = !!rootCauseExplanations[inc.id];
                   const rca = rootCauseExplanations[inc.id];
+                  const rowNum = (otPage - 1) * otPageSize + idx;
                   return (
-                    <tr key={inc.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${idx % 2 === 0 ? '' : 'bg-muted/10'}`}>
+                    <tr key={inc.id} className={`group border-b border-border/50 hover:bg-muted/20 transition-colors cursor-pointer ${rowNum % 2 === 0 ? '' : 'bg-muted/10'}`}>
                       <td className="px-4 py-3"><div className={`w-2 h-2 rounded-full ${severityDot[inc.severity] || 'bg-border'}`}/></td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-foreground">{inc.title}</div>
@@ -837,6 +886,7 @@ export default function Incidents() {
                 })}
               </tbody>
             </table>
+            <IncidentsPaginationBar total={incidents.length} page={otPage} pageSize={otPageSize} onPage={setOtPage} onPageSize={setOtPageSize} />
           </div>
         )}
 
@@ -881,14 +931,15 @@ export default function Incidents() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCarDefects.map((inc, idx) => (
-                    <WaysideIncidentRow key={inc.id} inc={inc} idx={idx} onOpenRca={setSelectedDefect}/>
+                  {pagedCarDefects.map((inc, idx) => (
+                    <WaysideIncidentRow key={inc.id} inc={inc} idx={(carPage - 1) * carPageSize + idx} onOpenRca={setSelectedDefect}/>
                   ))}
                   {filteredCarDefects.length === 0 && (
                     <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground text-xs">No incidents match the current filters.</td></tr>
                   )}
                 </tbody>
               </table>
+              <IncidentsPaginationBar total={filteredCarDefects.length} page={carPage} pageSize={carPageSize} onPage={setCarPage} onPageSize={setCarPageSize} />
             </div>
           </div>
         )}

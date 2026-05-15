@@ -1,11 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import {
   Activity, AlertTriangle, CheckCircle, Clock, RefreshCw,
   Wrench, ChevronDown, ChevronUp, ExternalLink, XCircle,
   Search, Radio, Cpu, HardDrive, Zap, MapPin,
   ToggleLeft, ToggleRight, FileText, Settings, Bell,
-  Wifi, WifiOff, Thermometer, MemoryStick
+  Wifi, WifiOff, Thermometer, MemoryStick,
+  ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight,
+  MoreVertical, Eye, BellOff, Ticket
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -16,6 +18,97 @@ import {
   getAlarmFrequencyBySubdivision, getStatusDistribution, getVoltageHistory, getHeartbeatTimeline,
   type CrossingAsset, type CrossingAlarm, type CrossingStatus, type AlarmSeverity
 } from "@/lib/crossingData";
+
+// ─── Reusable Pagination Component ──────────────────────────────────────────
+interface PaginationBarProps {
+  total: number;
+  page: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+  onPageSize: (s: number) => void;
+}
+function PaginationBar({ total, page, pageSize, onPage, onPageSize }: PaginationBarProps) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  const pages: (number | '...')[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('...');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-between pt-3 border-t border-border/40 mt-2">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span>Rows per page:</span>
+        <select
+          value={pageSize}
+          onChange={e => { onPageSize(Number(e.target.value)); onPage(1); }}
+          className="bg-card border border-border rounded px-1.5 py-0.5 text-xs text-foreground focus:outline-none"
+        >
+          {[10, 25, 50, 100].map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span className="ml-2">{from}–{to} of {total}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPage(1)} disabled={page === 1} className="p-1 rounded hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronsLeft size={13} /></button>
+        <button onClick={() => onPage(page - 1)} disabled={page === 1} className="p-1 rounded hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronLeft size={13} /></button>
+        {pages.map((p, i) =>
+          p === '...' ? (
+            <span key={`e${i}`} className="px-1 text-xs text-muted-foreground">…</span>
+          ) : (
+            <button
+              key={p}
+              onClick={() => onPage(p as number)}
+              className={`w-6 h-6 rounded text-xs font-medium transition-colors ${
+                p === page ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'text-muted-foreground hover:bg-card hover:text-foreground'
+              }`}
+            >{p}</button>
+          )
+        )}
+        <button onClick={() => onPage(page + 1)} disabled={page === totalPages} className="p-1 rounded hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronRight size={13} /></button>
+        <button onClick={() => onPage(totalPages)} disabled={page === totalPages} className="p-1 rounded hover:bg-card disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground transition-colors"><ChevronsRight size={13} /></button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Actions Dropdown ─────────────────────────────────────────────────────────
+function ActionsMenu({ onView, onSuppress, onTicket }: { onView: () => void; onSuppress: () => void; onTicket: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        className="p-1 rounded hover:bg-card text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <MoreVertical size={13} />
+      </button>
+      {open && (
+        <div
+          className="absolute right-0 top-6 z-50 bg-card border border-border rounded-lg shadow-xl py-1 w-44"
+          onMouseLeave={() => setOpen(false)}
+        >
+          <button onClick={() => { onView(); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors">
+            <Eye size={11} /> View Asset Detail
+          </button>
+          <button onClick={() => { onSuppress(); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors">
+            <BellOff size={11} /> Suppress Alarm
+          </button>
+          <button onClick={() => { onTicket(); setOpen(false); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors">
+            <Ticket size={11} /> Create SNOW Ticket
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function statusBg(s: CrossingStatus | 'MAINTENANCE') {
@@ -378,6 +471,17 @@ export default function CrossingMonitoring() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [severityFilter, setSeverityFilter] = useState('All');
   const [lastRefresh] = useState(new Date().toLocaleTimeString());
+  // Pagination state — one set per tab
+  const [assetPage, setAssetPage] = useState(1);
+  const [assetPageSize, setAssetPageSize] = useState(25);
+  const [alarmPage, setAlarmPage] = useState(1);
+  const [alarmPageSize, setAlarmPageSize] = useState(25);
+  const [eventPage, setEventPage] = useState(1);
+  const [eventPageSize, setEventPageSize] = useState(25);
+  // Reset pages when filters change
+  useEffect(() => { setAssetPage(1); }, [search, subFilter, statusFilter]);
+  useEffect(() => { setAlarmPage(1); }, [subFilter, severityFilter]);
+  useEffect(() => { setEventPage(1); }, [search, subFilter]);
 
   const summary = getCrossingSummary();
   const allAlarms = getAllAlarms();
@@ -408,6 +512,11 @@ export default function CrossingMonitoring() {
     const matchSearch = !q || e.description.toLowerCase().includes(q) || e.site.toLowerCase().includes(q);
     return matchSub && matchSearch;
   }), [allEvents, subFilter, search]);
+
+  // Paginated slices
+  const pagedAssets = useMemo(() => filteredAssets.slice((assetPage - 1) * assetPageSize, assetPage * assetPageSize), [filteredAssets, assetPage, assetPageSize]);
+  const pagedAlarms = useMemo(() => filteredAlarms.slice((alarmPage - 1) * alarmPageSize, alarmPage * alarmPageSize), [filteredAlarms, alarmPage, alarmPageSize]);
+  const pagedEvents = useMemo(() => filteredEvents.slice((eventPage - 1) * eventPageSize, eventPage * eventPageSize), [filteredEvents, eventPage, eventPageSize]);
 
   return (
     <Layout>
@@ -490,125 +599,216 @@ export default function CrossingMonitoring() {
 
           {/* ── ASSET VIEWER ── */}
           {view === 'assets' && (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-border/60">
-                    {['Crossing', 'Subdivision', 'MP', 'DOT #', 'Status', 'Alarms', 'DAU SW', 'WSDMM', 'Last Heartbeat'].map(h => (
-                      <th key={h} className="py-2 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAssets.map(asset => {
-                    const alarmCount = asset.activeAlarms.length;
-                    const critical = asset.activeAlarms.filter(a => a.severity === 'CRITICAL').length;
-                    return (
-                      <tr key={asset.crossingId} className="border-b border-border/60 hover:bg-card/30 cursor-pointer transition-colors" onClick={() => setSelectedAsset(asset)}>
-                        <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-1.5 h-1.5 rounded-full ${asset.status === 'ONLINE' && !asset.maintenanceMode ? 'bg-emerald-400' : asset.status === 'DEGRADED' ? 'bg-amber-400' : asset.status === 'OFFLINE' ? 'bg-red-400' : 'bg-blue-400'}`} />
-                            <div>
-                              <p className="text-xs font-medium text-foreground">{asset.streetName}</p>
-                              <p className="text-[10px] text-muted-foreground">{asset.city}, {asset.province}</p>
+            <div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-border/60">
+                      <th className="py-2 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-8">#</th>
+                      {['Crossing', 'Subdivision', 'MP', 'DOT #', 'Status', 'Alarms', 'DAU SW', 'WSDMM', 'Last Heartbeat', ''].map(h => (
+                        <th key={h} className="py-2 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pagedAssets.map((asset, idx) => {
+                      const rowNum = (assetPage - 1) * assetPageSize + idx + 1;
+                      const alarmCount = asset.activeAlarms.length;
+                      const critical = asset.activeAlarms.filter(a => a.severity === 'CRITICAL').length;
+                      return (
+                        <tr
+                          key={asset.crossingId}
+                          title="Click to view crossing details"
+                          className="group border-b border-border/60 hover:bg-cyan-500/5 cursor-pointer transition-colors"
+                          onClick={() => setSelectedAsset(asset)}
+                        >
+                          <td className="py-2.5 px-2 text-[10px] text-muted-foreground tabular-nums">{rowNum}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${asset.status === 'ONLINE' && !asset.maintenanceMode ? 'bg-emerald-400' : asset.status === 'DEGRADED' ? 'bg-amber-400' : asset.status === 'OFFLINE' ? 'bg-red-400' : 'bg-blue-400'}`} />
+                              <div>
+                                <p className="text-xs font-medium text-foreground group-hover:text-cyan-400 transition-colors">{asset.streetName}</p>
+                                <p className="text-[10px] text-muted-foreground">{asset.city}, {asset.province}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 text-xs text-foreground/80">{asset.subdivision}</td>
-                        <td className="py-2.5 px-3 text-xs font-mono text-muted-foreground">{asset.milepost}</td>
-                        <td className="py-2.5 px-3 text-xs font-mono text-muted-foreground">{asset.dotNum}</td>
-                        <td className="py-2.5 px-3">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${statusBg(asset.maintenanceMode ? 'MAINTENANCE' : asset.status)}`}>
-                            {asset.maintenanceMode ? 'MAINT' : asset.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3">
-                          {alarmCount > 0 ? (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${critical > 0 ? 'bg-red-400/10 border-red-400/30 text-red-400' : 'bg-amber-400/10 border-amber-400/30 text-amber-400'}`}>
-                              {alarmCount} {critical > 0 ? 'CRIT' : 'WARN'}
+                          </td>
+                          <td className="py-2.5 px-3 text-xs text-foreground/80">{asset.subdivision}</td>
+                          <td className="py-2.5 px-3 text-xs font-mono text-muted-foreground">{asset.milepost}</td>
+                          <td className="py-2.5 px-3 text-xs font-mono text-muted-foreground">{asset.dotNum}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${statusBg(asset.maintenanceMode ? 'MAINTENANCE' : asset.status)}`}>
+                              {asset.maintenanceMode ? 'MAINT' : asset.status}
                             </span>
-                          ) : <span className="text-[10px] text-emerald-400">Clear</span>}
-                        </td>
-                        <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.dau.softwareVersion}</td>
-                        <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.wsdmm.wsdmmImageVersion}</td>
-                        <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.dau.lastHeartbeat}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            {alarmCount > 0 ? (
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${critical > 0 ? 'bg-red-400/10 border-red-400/30 text-red-400' : 'bg-amber-400/10 border-amber-400/30 text-amber-400'}`}>
+                                {alarmCount} {critical > 0 ? 'CRIT' : 'WARN'}
+                              </span>
+                            ) : <span className="text-[10px] text-emerald-400">Clear</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.dau.softwareVersion}</td>
+                          <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.wsdmm.wsdmmImageVersion}</td>
+                          <td className="py-2.5 px-3 text-[10px] text-muted-foreground">{asset.dau.lastHeartbeat}</td>
+                          <td className="py-2.5 px-3 text-muted-foreground group-hover:text-cyan-400 transition-colors">
+                            <ChevronRight size={13} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationBar total={filteredAssets.length} page={assetPage} pageSize={assetPageSize} onPage={setAssetPage} onPageSize={setAssetPageSize} />
             </div>
           )}
 
           {/* ── ALARM VIEWER ── */}
           {view === 'alarms' && (
-            <div className="space-y-2">
+            <div>
               {filteredAlarms.length === 0 ? (
                 <div className="text-center py-12"><CheckCircle size={40} className="text-emerald-400 mx-auto mb-3" /><p className="text-sm text-muted-foreground">No active alarms matching filters</p></div>
-              ) : filteredAlarms.map(alarm => {
-                const asset = crossingAssets.find(c => c.crossingId === alarm.crossingId);
-                return (
-                  <div key={alarm.alarmId} className={`rounded-lg p-4 border ${alarm.severity === 'CRITICAL' ? 'bg-red-400/5 border-red-400/20' : alarm.severity === 'WARNING' ? 'bg-amber-400/5 border-amber-400/20' : 'bg-sky-400/5 border-sky-400/20'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${severityBg(alarm.severity)}`}>{alarm.severity}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground">{alarm.alarmCode}</span>
-                          <span className="text-[10px] text-muted-foreground">{alarm.deviceType}</span>
-                          {alarm.snowTicketId && <a href={alarm.snowTicketUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300"><ExternalLink size={10} /> {alarm.snowTicketId}</a>}
-                        </div>
-                        {asset && (
-                          <button onClick={() => setSelectedAsset(asset)} className="text-xs font-medium text-cyan-400 hover:text-cyan-300 mb-1 flex items-center gap-1">
-                            <MapPin size={11} /> {asset.streetName}, {asset.city} · {asset.subdivision} Sub MP {asset.milepost}
-                          </button>
-                        )}
-                        <p className="text-xs text-foreground leading-relaxed">{alarm.description}</p>
-                        <RCAPanel alarm={alarm} />
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[10px] text-muted-foreground">{alarm.timestamp}</p>
-                        <div className="flex gap-1.5 mt-2 justify-end">
-                          <button className="text-[10px] bg-muted/50 border border-border/50 text-foreground/80 px-2 py-1 rounded hover:bg-muted transition-colors">Clear</button>
-                          <button className="text-[10px] bg-blue-400/10 border border-blue-400/20 text-blue-400 px-2 py-1 rounded hover:bg-blue-400/20 transition-colors">Suppress</button>
-                        </div>
-                      </div>
-                    </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-border/60">
+                          <th className="py-2 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-8">#</th>
+                          {['Actions', 'Severity', 'Alarm Code', 'Open', 'Crossing', 'Subdivision / MP', 'Device', 'Description', 'SNOW Ticket', 'Timestamp'].map(h => (
+                            <th key={h} className="py-2 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedAlarms.map((alarm, idx) => {
+                          const rowNum = (alarmPage - 1) * alarmPageSize + idx + 1;
+                          const asset = crossingAssets.find(c => c.crossingId === alarm.crossingId);
+                          return (
+                            <tr
+                              key={alarm.alarmId}
+                              title="Click to view crossing details"
+                              className="group border-b border-border/60 hover:bg-cyan-500/5 cursor-pointer transition-colors"
+                              onClick={() => asset && setSelectedAsset(asset)}
+                            >
+                              <td className="py-2.5 px-2 text-[10px] text-muted-foreground tabular-nums">{rowNum}</td>
+                              <td className="py-2.5 px-3" onClick={e => e.stopPropagation()}>
+                                <ActionsMenu
+                                  onView={() => asset && setSelectedAsset(asset)}
+                                  onSuppress={() => {}}
+                                  onTicket={() => {}}
+                                />
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border whitespace-nowrap ${severityBg(alarm.severity)}`}>{alarm.severity}</span>
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] font-mono text-muted-foreground whitespace-nowrap">{alarm.alarmCode}</td>
+                              <td className="py-2.5 px-3">
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border bg-emerald-400/10 border-emerald-400/30 text-emerald-400">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  Open
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {asset ? (
+                                  <div>
+                                    <p className="text-xs font-medium text-foreground group-hover:text-cyan-400 transition-colors">{asset.streetName}</p>
+                                    <p className="text-[10px] text-muted-foreground">{asset.city}, {asset.province}</p>
+                                  </div>
+                                ) : <span className="text-[10px] text-muted-foreground">{alarm.crossingId}</span>}
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">
+                                {asset ? `${asset.subdivision} Sub MP ${asset.milepost}` : '—'}
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">{alarm.deviceType}</td>
+                              <td className="py-2.5 px-3 text-xs text-foreground max-w-xs">
+                                <p className="truncate" title={alarm.description}>{alarm.description}</p>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {alarm.snowTicketId ? (
+                                  <a href={alarm.snowTicketUrl} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="inline-flex items-center gap-1 text-[10px] text-sky-400 hover:text-sky-300 whitespace-nowrap">
+                                    <ExternalLink size={10} /> {alarm.snowTicketId}
+                                  </a>
+                                ) : <span className="text-[10px] text-muted-foreground/50">—</span>}
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">{alarm.timestamp}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                );
-              })}
+                  <PaginationBar total={filteredAlarms.length} page={alarmPage} pageSize={alarmPageSize} onPage={setAlarmPage} onPageSize={setAlarmPageSize} />
+                </>
+              )}
             </div>
           )}
 
           {/* ── EVENT VIEWER ── */}
           {view === 'events' && (
-            <div className="space-y-1.5">
+            <div>
               {filteredEvents.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center py-12">No events matching filters</p>
-              ) : filteredEvents.map(evt => (
-                <div key={evt.eventId} className="bg-card/30 rounded-lg px-4 py-3 border border-border/30 flex items-start gap-3 hover:bg-card/50 transition-colors">
-                  <div className="mt-0.5">{eventTypeIcon(evt.eventType)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                      <span className="text-[10px] font-mono text-muted-foreground">{evt.eventType}</span>
-                      <span className="text-[10px] text-muted-foreground">·</span>
-                      <button onClick={() => { const asset = crossingAssets.find(c => c.crossingId === evt.crossingId); if (asset) setSelectedAsset(asset); }} className="text-[10px] text-cyan-400 hover:text-cyan-300">{evt.site}</button>
-                      <span className="text-[10px] text-muted-foreground">·</span>
-                      <span className="text-[10px] text-muted-foreground">{evt.subdivision} Sub MP {evt.milepost}</span>
-                      <span className="text-[10px] text-muted-foreground">·</span>
-                      <span className="text-[10px] font-medium text-muted-foreground">{evt.deviceType}</span>
-                    </div>
-                    <p className="text-xs text-foreground leading-relaxed">{evt.description}</p>
-                    {evt.details && Object.keys(evt.details).length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {Object.entries(evt.details).map(([k, v]) => (
-                          <span key={k} className="text-[10px] font-mono bg-background border border-border px-1.5 py-0.5 rounded text-muted-foreground">{k}: {String(v)}</span>
-                        ))}
-                      </div>
-                    )}
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="border-b border-border/60">
+                          <th className="py-2 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider w-8">#</th>
+                          {['Type', 'Site', 'Subdivision / MP', 'Device', 'Description', 'Details', 'Timestamp', ''].map(h => (
+                            <th key={h} className="py-2 px-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pagedEvents.map((evt, idx) => {
+                          const rowNum = (eventPage - 1) * eventPageSize + idx + 1;
+                          const asset = crossingAssets.find(c => c.crossingId === evt.crossingId);
+                          return (
+                            <tr
+                              key={evt.eventId}
+                              title="Click to view crossing details"
+                              className="group border-b border-border/60 hover:bg-cyan-500/5 cursor-pointer transition-colors"
+                              onClick={() => asset && setSelectedAsset(asset)}
+                            >
+                              <td className="py-2.5 px-2 text-[10px] text-muted-foreground tabular-nums">{rowNum}</td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5">
+                                  {eventTypeIcon(evt.eventType)}
+                                  <span className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{evt.eventType}</span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <p className="text-xs font-medium text-foreground group-hover:text-cyan-400 transition-colors">{evt.site}</p>
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">{evt.subdivision} Sub MP {evt.milepost}</td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">{evt.deviceType}</td>
+                              <td className="py-2.5 px-3 text-xs text-foreground max-w-xs">
+                                <p className="truncate" title={evt.description}>{evt.description}</p>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {evt.details && Object.keys(evt.details).length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {Object.entries(evt.details).slice(0, 2).map(([k, v]) => (
+                                      <span key={k} className="text-[9px] font-mono bg-background border border-border px-1 py-0.5 rounded text-muted-foreground">{k}: {String(v)}</span>
+                                    ))}
+                                  </div>
+                                ) : <span className="text-[10px] text-muted-foreground/40">—</span>}
+                              </td>
+                              <td className="py-2.5 px-3 text-[10px] text-muted-foreground whitespace-nowrap">{evt.timestamp}</td>
+                              <td className="py-2.5 px-3 text-muted-foreground group-hover:text-cyan-400 transition-colors">
+                                <ChevronRight size={13} />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <p className="text-[10px] text-muted-foreground shrink-0">{evt.timestamp}</p>
-                </div>
-              ))}
+                  <PaginationBar total={filteredEvents.length} page={eventPage} pageSize={eventPageSize} onPage={setEventPage} onPageSize={setEventPageSize} />
+                </>
+              )}
             </div>
           )}
 

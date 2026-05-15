@@ -761,13 +761,16 @@ ${sections}
                   <span className={`text-xs font-bold font-mono px-2 py-0.5 rounded ${
                     r.count > 0 ? 'bg-cn-red/10 text-cn-red' : 'bg-muted/20 text-muted-foreground'
                   }`}>{r.count} records</span>
-                  <button
-                    onClick={e => { e.stopPropagation(); exportModule(m.id); }}
-                    disabled={r.count === 0}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={e => { e.stopPropagation(); if (r.count > 0) exportModule(m.id); }}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); if (r.count > 0) exportModule(m.id); } }}
+                    aria-disabled={r.count === 0}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30 transition-colors ${r.count === 0 ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     <Download size={10}/>CSV
-                  </button>
+                  </span>
                   {isOpen ? <ChevronDown size={14} className="text-muted-foreground shrink-0"/> : <ChevronRight size={14} className="text-muted-foreground shrink-0"/>}
                 </button>
 
