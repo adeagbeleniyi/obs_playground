@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import {
   FileText, Download, Search, Calendar, Filter,
   AlertTriangle, Train, Users, Radio, Gauge, TrafficCone,
-  ChevronDown, ChevronRight, RefreshCw, X
+  ChevronDown, ChevronRight, RefreshCw, X, Save, BookOpen,
+  Trash2, ChevronLeft, BarChart2, Activity, Clock, TrendingUp,
 } from 'lucide-react';
 import { incidents as otIncidents } from '@/lib/mockData';
 import { waysideIncidents } from '@/lib/waysideIncidents';
@@ -20,17 +21,29 @@ interface ModuleConfig {
   label: string;
   icon: React.ReactNode;
   color: string;
+  bgColor: string;
   description: string;
 }
 
+interface SavedConfig {
+  id: string;
+  name: string;
+  preset: Preset;
+  customStart: string;
+  customEnd: string;
+  selectedModules: string[];
+  keyword: string;
+  savedAt: string;
+}
+
 const MODULES: ModuleConfig[] = [
-  { id: 'ot',       label: 'OT System Incidents',  icon: <AlertTriangle size={13}/>, color: 'text-amber-400',  description: 'Dynatrace Davis AI incidents' },
-  { id: 'cardef',   label: 'Car Defect Incidents',  icon: <Gauge size={13}/>,        color: 'text-orange-400', description: 'Wayside detector alarms' },
-  { id: 'crossing', label: 'Crossing Alarms',       icon: <TrafficCone size={13}/>,  color: 'text-red-400',    description: 'DAU / WSDMM crossing events' },
-  { id: 'fleet',    label: 'Fleet Events',           icon: <Train size={13}/>,        color: 'text-sky-400',    description: 'Consist & lifecycle events' },
-  { id: 'crew',     label: 'Crew & HOS',             icon: <Users size={13}/>,        color: 'text-violet-400', description: 'Active crew HOS status' },
-  { id: 'wayside',  label: 'Wayside Detections',    icon: <Radio size={13}/>,        color: 'text-emerald-400',description: 'Raw detector readings' },
-  { id: 'dispatch', label: 'Dispatch Track Events', icon: <TrafficCone size={13}/>,  color: 'text-cyan-400',   description: 'Track authorities & restrictions' },
+  { id: 'ot',       label: 'OT System Incidents',  icon: <AlertTriangle size={13}/>, color: 'text-amber-400',   bgColor: 'bg-amber-400',  description: 'Dynatrace Davis AI incidents' },
+  { id: 'cardef',   label: 'Car Defect Incidents',  icon: <Gauge size={13}/>,        color: 'text-orange-400',  bgColor: 'bg-orange-400', description: 'Wayside detector alarms' },
+  { id: 'crossing', label: 'Crossing Alarms',       icon: <TrafficCone size={13}/>,  color: 'text-red-400',     bgColor: 'bg-red-400',    description: 'DAU / WSDMM crossing events' },
+  { id: 'fleet',    label: 'Fleet Events',           icon: <Train size={13}/>,        color: 'text-sky-400',     bgColor: 'bg-sky-400',    description: 'Consist & lifecycle events' },
+  { id: 'crew',     label: 'Crew & HOS',             icon: <Users size={13}/>,        color: 'text-violet-400',  bgColor: 'bg-violet-400', description: 'Active crew HOS status' },
+  { id: 'wayside',  label: 'Wayside Detections',    icon: <Radio size={13}/>,        color: 'text-emerald-400', bgColor: 'bg-emerald-400',description: 'Raw detector readings' },
+  { id: 'dispatch', label: 'Dispatch Track Events', icon: <TrafficCone size={13}/>,  color: 'text-cyan-400',    bgColor: 'bg-cyan-400',   description: 'Track authorities & restrictions' },
 ];
 
 const PRESETS: { key: Preset; label: string }[] = [
@@ -41,6 +54,9 @@ const PRESETS: { key: Preset; label: string }[] = [
   { key: 'thisMonth', label: 'This Month' },
   { key: 'custom',    label: 'Custom' },
 ];
+
+const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+const SAVED_CONFIGS_KEY = 'cn-spog-report-configs';
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
@@ -57,7 +73,7 @@ function getPresetRange(preset: Preset, customStart: string, customEnd: string):
     const e = customEnd   ? endOfDay(new Date(customEnd))     : null;
     return [s, e];
   }
-  return [null, null]; // 'all'
+  return [null, null];
 }
 
 function inRange(ts: string | undefined, start: Date|null, end: Date|null): boolean {
@@ -75,13 +91,80 @@ function toCsv(headers: string[], rows: string[][]): string {
   const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
   return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
 }
-
 function downloadCsv(filename: string, content: string) {
   const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Pagination component ─────────────────────────────────────────────────────
+function Pagination({ total, page, pageSize, onPage, onPageSize }: {
+  total: number; page: number; pageSize: number;
+  onPage: (p: number) => void; onPageSize: (s: number) => void;
+}) {
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to   = Math.min(page * pageSize, total);
+
+  const pages: (number | '…')[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('…');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('…');
+    pages.push(totalPages);
+  }
+
+  return (
+    <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-muted/10">
+      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+        <span>Rows per page:</span>
+        <select
+          value={pageSize}
+          onChange={e => { onPageSize(Number(e.target.value)); onPage(1); }}
+          className="bg-background border border-border rounded px-1.5 py-0.5 text-[10px] text-foreground focus:outline-none"
+        >
+          {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <span className="ml-2">{from}–{to} of {total}</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <button onClick={() => onPage(page - 1)} disabled={page === 1}
+          className="p-1 rounded hover:bg-muted/30 disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground">
+          <ChevronLeft size={12}/>
+        </button>
+        {pages.map((p, i) =>
+          p === '…'
+            ? <span key={`e${i}`} className="px-1.5 text-[10px] text-muted-foreground">…</span>
+            : <button key={p} onClick={() => onPage(p as number)}
+                className={`w-6 h-6 rounded text-[10px] font-medium transition-colors ${
+                  p === page ? 'bg-cn-red text-white' : 'hover:bg-muted/30 text-muted-foreground'
+                }`}>{p}</button>
+        )}
+        <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+          className="p-1 rounded hover:bg-muted/30 disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground">
+          <ChevronRight size={12}/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Mini bar chart ────────────────────────────────────────────────────────────
+function MiniBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = max > 0 ? (value / max) * 100 : 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[9px] text-muted-foreground w-16 truncate shrink-0">{label}</span>
+      <div className="flex-1 h-1.5 rounded-full bg-muted/30">
+        <div className={`h-1.5 rounded-full ${color} transition-all`} style={{ width: `${pct}%` }}/>
+      </div>
+      <span className="text-[9px] font-mono text-foreground w-6 text-right shrink-0">{value}</span>
+    </div>
+  );
 }
 
 // ── Main component ──────────────────────────────────────────────────────────
@@ -102,6 +185,24 @@ export default function Reports() {
   // Expanded module in results
   const [expandedModule, setExpandedModule] = useState<string | null>('ot');
 
+  // Pagination: per-module page state
+  const [pages, setPages]         = useState<Record<string, number>>({});
+  const [pageSizes, setPageSizes] = useState<Record<string, number>>({});
+
+  // Saved configurations
+  const [savedConfigs, setSavedConfigs] = useState<SavedConfig[]>(() => {
+    try { return JSON.parse(localStorage.getItem(SAVED_CONFIGS_KEY) || '[]'); }
+    catch { return []; }
+  });
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName]             = useState('');
+  const [showSavedPanel, setShowSavedPanel] = useState(false);
+
+  // Persist saved configs
+  useEffect(() => {
+    localStorage.setItem(SAVED_CONFIGS_KEY, JSON.stringify(savedConfigs));
+  }, [savedConfigs]);
+
   const [rangeStart, rangeEnd] = useMemo(
     () => getPresetRange(preset, customStart, customEnd),
     [preset, customStart, customEnd]
@@ -116,14 +217,12 @@ export default function Reports() {
       (!kw || [i.title, i.system, i.status, i.severity, i.subdivision || ''].join(' ').toLowerCase().includes(kw))
     ), [rangeStart, rangeEnd, kw]);
 
-  // WaysideIncident: carNumber, reportingMark, detectorType, location, subdivision, status, title, description, trainId
   const filteredCarDef = useMemo(() =>
     waysideIncidents.filter(i =>
       inRange(i.timestamp, rangeStart, rangeEnd) &&
       (!kw || [i.carNumber, i.detectorType, i.location, i.subdivision, i.status, i.title, i.description, i.trainId].join(' ').toLowerCase().includes(kw))
     ), [rangeStart, rangeEnd, kw]);
 
-  // CrossingAlarm: alarmId, crossingId, alarmCode, severity, deviceType, description, snowTicketId
   const filteredCrossing = useMemo(() => {
     const alarms = getAllAlarms();
     return alarms.filter(a =>
@@ -132,14 +231,12 @@ export default function Reports() {
     );
   }, [rangeStart, rangeEnd, kw]);
 
-  // ConsistEvent: id, trainId, yard, type, carOrLocoId, carType, foreignRailroad
   const filteredFleet = useMemo(() =>
     CONSIST_EVENTS.filter(e =>
       inRange(e.timestamp, rangeStart, rangeEnd) &&
       (!kw || [e.id, e.trainId, e.yard, e.type, e.carOrLocoId, e.carType ?? '', e.foreignRailroad ?? ''].join(' ').toLowerCase().includes(kw))
     ), [rangeStart, rangeEnd, kw]);
 
-  // ActiveCrew: crewId, trainId, subdivision, hosStatus, members[].name
   const filteredCrew = useMemo(() =>
     activeCrew.filter(c =>
       (!kw || [c.crewId, c.trainId, c.subdivision, c.hosStatus, ...c.members.map(m => m.name)].join(' ').toLowerCase().includes(kw))
@@ -151,7 +248,6 @@ export default function Reports() {
       (!kw || [i.carNumber, i.detectorType, i.location, i.subdivision, i.status, i.title].join(' ').toLowerCase().includes(kw))
     ), [rangeStart, rangeEnd, kw]);
 
-  // TrackEvent: id, type, subdivision, status, description, issuedAt, expiresAt, affectedTrains, severity
   const filteredDispatch = useMemo(() =>
     TRACK_EVENTS.filter(e =>
       inRange(e.issuedAt, rangeStart, rangeEnd) &&
@@ -159,7 +255,7 @@ export default function Reports() {
     ), [rangeStart, rangeEnd, kw]);
 
   // ── Module result map ────────────────────────────────────────────────────
-  const moduleResults: Record<string, { count: number; rows: string[][]; headers: string[] }> = {
+  const moduleResults: Record<string, { count: number; rows: string[][]; headers: string[] }> = useMemo(() => ({
     ot: {
       count: filteredOT.length,
       headers: ['ID','Title','System','Severity','Status','Timestamp','AI Resolved','MTTR (min)'],
@@ -195,11 +291,54 @@ export default function Reports() {
       headers: ['Event ID','Type','Subdivision','From MP','To MP','Status','Severity','Description','Issued At','Expires At','Affected Trains'],
       rows: filteredDispatch.map(e => [e.id, e.type, e.subdivision, String(e.fromMp), String(e.toMp), e.status, e.severity, e.description, e.issuedAt, e.expiresAt ?? '', e.affectedTrains.join('; ')]),
     },
-  };
+  }), [filteredOT, filteredCarDef, filteredCrossing, filteredFleet, filteredCrew, filteredWayside, filteredDispatch]);
 
-  const totalRecords = Object.entries(moduleResults)
-    .filter(([id]) => selectedModules.has(id))
-    .reduce((s, [, v]) => s + v.count, 0);
+  const totalRecords = useMemo(() =>
+    Object.entries(moduleResults)
+      .filter(([id]) => selectedModules.has(id))
+      .reduce((s, [, v]) => s + v.count, 0),
+    [moduleResults, selectedModules]
+  );
+
+  // ── Summary statistics for charts ────────────────────────────────────────
+  const summaryStats = useMemo(() => {
+    const otOpen     = filteredOT.filter(i => i.status === 'open' || i.status === 'investigating').length;
+    const otResolved = filteredOT.filter(i => i.status === 'resolved' || i.status === 'auto-resolved').length;
+    const otAI       = filteredOT.filter(i => i.aiResolved).length;
+    const otCritical = filteredOT.filter(i => i.severity === 'critical').length;
+
+    const carAlarms  = filteredCarDef.filter(i => i.status === 'ALARM').length;
+    const carAlerts  = filteredCarDef.filter(i => i.status === 'ALERT').length;
+
+    const hosOk      = filteredCrew.filter(c => c.hosStatus === 'OK').length;
+    const hosWarn    = filteredCrew.filter(c => c.hosStatus === 'WARNING').length;
+    const hosExp     = filteredCrew.filter(c => c.hosStatus === 'CRITICAL').length;
+
+    const dispActive = filteredDispatch.filter(e => e.status === 'ACTIVE').length;
+    const dispCrit   = filteredDispatch.filter(e => e.severity === 'CRITICAL').length;
+
+    // Severity breakdown across OT incidents
+    const sevMap: Record<string, number> = {};
+    filteredOT.forEach(i => { sevMap[i.severity] = (sevMap[i.severity] || 0) + 1; });
+
+    // Module distribution
+    const modDist = MODULES
+      .filter(m => selectedModules.has(m.id))
+      .map(m => ({ id: m.id, label: m.label, count: moduleResults[m.id].count, color: m.bgColor }))
+      .sort((a, b) => b.count - a.count);
+
+    return { otOpen, otResolved, otAI, otCritical, carAlarms, carAlerts, hosOk, hosWarn, hosExp, dispActive, dispCrit, sevMap, modDist };
+  }, [filteredOT, filteredCarDef, filteredCrew, filteredDispatch, moduleResults, selectedModules]);
+
+  // ── Pagination helpers ───────────────────────────────────────────────────
+  const getPage     = (id: string) => pages[id]     ?? 1;
+  const getPageSize = (id: string) => pageSizes[id] ?? 25;
+
+  const setPage     = useCallback((id: string, p: number)    => setPages(prev     => ({ ...prev, [id]: p })), []);
+  const setPageSize = useCallback((id: string, s: number)    => setPageSizes(prev => ({ ...prev, [id]: s })), []);
+
+  // Reset pages when filters change
+  useEffect(() => { setPages({}); }, [rangeStart, rangeEnd, kw, selectedModules]);
 
   // ── Export helpers ───────────────────────────────────────────────────────
   function exportModule(id: string) {
@@ -246,6 +385,45 @@ ${sections}
     });
   }
 
+  // ── Saved config helpers ─────────────────────────────────────────────────
+  function saveConfig() {
+    if (!saveName.trim()) return;
+    const cfg: SavedConfig = {
+      id: Date.now().toString(),
+      name: saveName.trim(),
+      preset, customStart, customEnd,
+      selectedModules: Array.from(selectedModules),
+      keyword,
+      savedAt: new Date().toISOString(),
+    };
+    setSavedConfigs(prev => [cfg, ...prev]);
+    setSaveName('');
+    setSaveDialogOpen(false);
+  }
+
+  function loadConfig(cfg: SavedConfig) {
+    setPreset(cfg.preset);
+    setCustomStart(cfg.customStart);
+    setCustomEnd(cfg.customEnd);
+    setSelectedModules(new Set(cfg.selectedModules));
+    setKeyword(cfg.keyword);
+    setShowSavedPanel(false);
+  }
+
+  function deleteConfig(id: string) {
+    setSavedConfigs(prev => prev.filter(c => c.id !== id));
+  }
+
+  function resetAll() {
+    setKeyword('');
+    setPreset('all');
+    setCustomStart('');
+    setCustomEnd('');
+    setSelectedModules(new Set(MODULES.map(m => m.id)));
+  }
+
+  const maxModuleCount = Math.max(...MODULES.map(m => moduleResults[m.id]?.count ?? 0), 1);
+
   return (
     <Layout>
       <div className="flex h-full min-h-screen bg-background">
@@ -254,12 +432,90 @@ ${sections}
         <div className="w-72 shrink-0 border-r border-border bg-card flex flex-col">
           {/* Header */}
           <div className="px-4 py-4 border-b border-border">
-            <div className="flex items-center gap-2 mb-1">
-              <FileText size={16} className="text-cn-red"/>
-              <span className="text-sm font-bold text-foreground">Reports</span>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-cn-red"/>
+                <span className="text-sm font-bold text-foreground">Reports</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setShowSavedPanel(v => !v)}
+                  title="Saved configurations"
+                  className={`p-1.5 rounded border text-[10px] transition-colors ${showSavedPanel ? 'bg-cn-red/20 border-cn-red/40 text-cn-red' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/20'}`}
+                >
+                  <BookOpen size={12}/>
+                </button>
+                <button
+                  onClick={() => setSaveDialogOpen(v => !v)}
+                  title="Save current configuration"
+                  className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+                >
+                  <Save size={12}/>
+                </button>
+              </div>
             </div>
             <p className="text-[10px] text-muted-foreground">Search and export data across all modules</p>
           </div>
+
+          {/* Save dialog */}
+          {saveDialogOpen && (
+            <div className="px-4 py-3 border-b border-border bg-muted/10 space-y-2">
+              <p className="text-[10px] font-semibold text-foreground">Save Configuration</p>
+              <input
+                type="text"
+                value={saveName}
+                onChange={e => setSaveName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveConfig()}
+                placeholder="Configuration name…"
+                autoFocus
+                className="w-full px-2.5 py-1.5 rounded border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-cn-red/50"
+              />
+              <div className="flex gap-2">
+                <button onClick={saveConfig} disabled={!saveName.trim()}
+                  className="flex-1 px-2 py-1.5 rounded text-[10px] font-semibold bg-cn-red text-white hover:bg-cn-red/90 disabled:opacity-40 disabled:cursor-not-allowed">
+                  Save
+                </button>
+                <button onClick={() => { setSaveDialogOpen(false); setSaveName(''); }}
+                  className="flex-1 px-2 py-1.5 rounded text-[10px] font-medium border border-border text-muted-foreground hover:text-foreground">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Saved configs panel */}
+          {showSavedPanel && (
+            <div className="border-b border-border bg-muted/5">
+              <div className="px-4 py-2 flex items-center justify-between">
+                <span className="text-[10px] font-semibold text-foreground">Saved Configurations</span>
+                <span className="text-[9px] text-muted-foreground">{savedConfigs.length} saved</span>
+              </div>
+              {savedConfigs.length === 0 ? (
+                <div className="px-4 pb-3 text-[10px] text-muted-foreground">No saved configurations yet.</div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto">
+                  {savedConfigs.map(cfg => (
+                    <div key={cfg.id} className="flex items-center gap-2 px-4 py-2 hover:bg-muted/10 border-b border-border/50 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-medium text-foreground truncate">{cfg.name}</div>
+                        <div className="text-[9px] text-muted-foreground">
+                          {PRESETS.find(p => p.key === cfg.preset)?.label} · {cfg.selectedModules.length} modules
+                        </div>
+                      </div>
+                      <button onClick={() => loadConfig(cfg)}
+                        className="text-[9px] px-2 py-1 rounded bg-cn-red/10 text-cn-red hover:bg-cn-red/20 font-medium shrink-0">
+                        Load
+                      </button>
+                      <button onClick={() => deleteConfig(cfg.id)}
+                        className="p-1 rounded text-muted-foreground hover:text-red-400 hover:bg-red-500/10 shrink-0">
+                        <Trash2 size={10}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
 
@@ -336,15 +592,18 @@ ${sections}
                 {MODULES.map(m => {
                   const r = moduleResults[m.id];
                   const active = selectedModules.has(m.id);
+                  const pct = maxModuleCount > 0 ? (r.count / maxModuleCount) * 100 : 0;
                   return (
                     <button key={m.id} onClick={() => toggleModule(m.id)}
                       className={`w-full flex items-center gap-2 px-2.5 py-2 rounded border text-left transition-colors ${
-                        active ? 'bg-muted/20 border-border' : 'bg-transparent border-transparent opacity-50'
+                        active ? 'bg-muted/20 border-border' : 'bg-transparent border-transparent opacity-40'
                       }`}>
                       <div className={`shrink-0 ${m.color}`}>{m.icon}</div>
                       <div className="flex-1 min-w-0">
                         <div className="text-[10px] font-medium text-foreground truncate">{m.label}</div>
-                        <div className="text-[9px] text-muted-foreground truncate">{m.description}</div>
+                        <div className="relative h-1 rounded-full bg-muted/30 mt-1">
+                          <div className={`absolute left-0 top-0 h-1 rounded-full ${m.bgColor} opacity-70`} style={{ width: `${pct}%` }}/>
+                        </div>
                       </div>
                       <span className={`text-[10px] font-mono font-bold shrink-0 ${r.count > 0 ? m.color : 'text-muted-foreground'}`}>
                         {r.count}
@@ -385,16 +644,108 @@ ${sections}
                 {rangeStart && <> · {rangeStart.toLocaleDateString()} → {rangeEnd ? rangeEnd.toLocaleDateString() : 'now'}</>}
               </p>
             </div>
-            <button onClick={() => { setKeyword(''); setPreset('all'); setCustomStart(''); setCustomEnd(''); setSelectedModules(new Set(MODULES.map(m => m.id))); }}
+            <button onClick={resetAll}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-border text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
               <RefreshCw size={11}/>Reset
             </button>
           </div>
 
+          {/* ── Visual Summary Charts ─────────────────────────────────── */}
+          {totalRecords > 0 && (
+            <div className="grid grid-cols-4 gap-3">
+
+              {/* KPI tiles */}
+              <div className="bg-card border border-border rounded p-3 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Activity size={10} className="text-cn-red"/>Total Records
+                </div>
+                <div className="text-2xl font-bold font-mono text-foreground">{totalRecords}</div>
+                <div className="text-[9px] text-muted-foreground">{selectedModules.size} modules active</div>
+              </div>
+
+              <div className="bg-card border border-border rounded p-3 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <AlertTriangle size={10} className="text-red-400"/>Open Incidents
+                </div>
+                <div className="text-2xl font-bold font-mono text-red-400">{summaryStats.otOpen}</div>
+                <div className="text-[9px] text-muted-foreground">{summaryStats.otCritical} critical severity</div>
+              </div>
+
+              <div className="bg-card border border-border rounded p-3 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <Gauge size={10} className="text-orange-400"/>Car Defect Alarms
+                </div>
+                <div className="text-2xl font-bold font-mono text-orange-400">{summaryStats.carAlarms}</div>
+                <div className="text-[9px] text-muted-foreground">{summaryStats.carAlerts} alerts also active</div>
+              </div>
+
+              <div className="bg-card border border-border rounded p-3 space-y-1">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <TrendingUp size={10} className="text-emerald-400"/>AI Auto-Resolved
+                </div>
+                <div className="text-2xl font-bold font-mono text-emerald-400">{summaryStats.otAI}</div>
+                <div className="text-[9px] text-muted-foreground">of {filteredOT.length} OT incidents</div>
+              </div>
+
+              {/* Module distribution bar chart */}
+              <div className="col-span-2 bg-card border border-border rounded p-3">
+                <div className="flex items-center gap-1.5 mb-3 text-[10px] font-semibold text-foreground">
+                  <BarChart2 size={11} className="text-cn-red"/>Module Distribution
+                </div>
+                <div className="space-y-1.5">
+                  {summaryStats.modDist.map(m => (
+                    <MiniBar key={m.id} label={m.label.split(' ')[0]} value={m.count} max={maxModuleCount} color={m.color}/>
+                  ))}
+                </div>
+              </div>
+
+              {/* OT severity breakdown */}
+              <div className="bg-card border border-border rounded p-3">
+                <div className="flex items-center gap-1.5 mb-3 text-[10px] font-semibold text-foreground">
+                  <AlertTriangle size={11} className="text-amber-400"/>OT Severity
+                </div>
+                <div className="space-y-1.5">
+                  {[
+                    { key: 'critical', color: 'bg-red-400',    label: 'Critical' },
+                    { key: 'warning',  color: 'bg-amber-400',  label: 'Warning'  },
+                    { key: 'info',     color: 'bg-sky-400',    label: 'Info'     },
+                  ].map(s => (
+                    <MiniBar key={s.key} label={s.label} value={summaryStats.sevMap[s.key] ?? 0} max={filteredOT.length || 1} color={s.color}/>
+                  ))}
+                  <div className="pt-1 border-t border-border/50 flex justify-between text-[9px] text-muted-foreground">
+                    <span>Resolved: <span className="text-emerald-400 font-mono">{summaryStats.otResolved}</span></span>
+                    <span>Open: <span className="text-red-400 font-mono">{summaryStats.otOpen}</span></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Crew HOS status */}
+              <div className="bg-card border border-border rounded p-3">
+                <div className="flex items-center gap-1.5 mb-3 text-[10px] font-semibold text-foreground">
+                  <Clock size={11} className="text-violet-400"/>Crew HOS Status
+                </div>
+                <div className="space-y-1.5">
+                  <MiniBar label="OK" value={summaryStats.hosOk} max={filteredCrew.length || 1} color="bg-emerald-400"/>
+                  <MiniBar label="Warning" value={summaryStats.hosWarn} max={filteredCrew.length || 1} color="bg-amber-400"/>
+                  <MiniBar label="Expired" value={summaryStats.hosExp} max={filteredCrew.length || 1} color="bg-red-400"/>
+                </div>
+                <div className="pt-1 mt-1 border-t border-border/50 flex justify-between text-[9px] text-muted-foreground">
+                  <span>Dispatch Active: <span className="text-cyan-400 font-mono">{summaryStats.dispActive}</span></span>
+                  <span>Crit: <span className="text-red-400 font-mono">{summaryStats.dispCrit}</span></span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Module result cards */}
           {MODULES.filter(m => selectedModules.has(m.id)).map(m => {
             const r = moduleResults[m.id];
-            const isOpen = expandedModule === m.id;
+            const isOpen  = expandedModule === m.id;
+            const pg      = getPage(m.id);
+            const pgSize  = getPageSize(m.id);
+            const totalPg = r.rows.length;
+            const pageRows = r.rows.slice((pg - 1) * pgSize, pg * pgSize);
+
             return (
               <div key={m.id} className="bg-card border border-border rounded overflow-hidden">
                 {/* Module header */}
@@ -420,35 +771,39 @@ ${sections}
                   {isOpen ? <ChevronDown size={14} className="text-muted-foreground shrink-0"/> : <ChevronRight size={14} className="text-muted-foreground shrink-0"/>}
                 </button>
 
-                {/* Expanded table */}
+                {/* Expanded table with pagination */}
                 {isOpen && r.count > 0 && (
-                  <div className="border-t border-border overflow-x-auto">
-                    <table className="w-full text-[10px]">
-                      <thead>
-                        <tr className="bg-muted/20">
-                          {r.headers.map(h => (
-                            <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-border">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {r.rows.slice(0, 50).map((row, ri) => (
-                          <tr key={ri} className="border-b border-border/50 hover:bg-muted/10">
-                            {row.map((cell, ci) => (
-                              <td key={ci} className="px-3 py-1.5 text-foreground whitespace-nowrap max-w-[200px] truncate">{cell}</td>
+                  <>
+                    <div className="border-t border-border overflow-x-auto">
+                      <table className="w-full text-[10px]">
+                        <thead>
+                          <tr className="bg-muted/20">
+                            <th className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-border w-8">#</th>
+                            {r.headers.map(h => (
+                              <th key={h} className="px-3 py-2 text-left font-semibold text-muted-foreground whitespace-nowrap border-b border-border">{h}</th>
                             ))}
                           </tr>
-                        ))}
-                        {r.rows.length > 50 && (
-                          <tr>
-                            <td colSpan={r.headers.length} className="px-3 py-2 text-[10px] text-muted-foreground text-center">
-                              Showing first 50 of {r.rows.length} records. Export CSV for full dataset.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {pageRows.map((row, ri) => (
+                            <tr key={ri} className="border-b border-border/50 hover:bg-muted/10">
+                              <td className="px-3 py-1.5 text-muted-foreground font-mono text-[9px]">{(pg - 1) * pgSize + ri + 1}</td>
+                              {row.map((cell, ci) => (
+                                <td key={ci} className="px-3 py-1.5 text-foreground whitespace-nowrap max-w-[200px] truncate" title={cell}>{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <Pagination
+                      total={totalPg}
+                      page={pg}
+                      pageSize={pgSize}
+                      onPage={p => setPage(m.id, p)}
+                      onPageSize={s => setPageSize(m.id, s)}
+                    />
+                  </>
                 )}
                 {isOpen && r.count === 0 && (
                   <div className="border-t border-border px-4 py-6 text-center text-[11px] text-muted-foreground">
