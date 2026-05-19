@@ -47,8 +47,11 @@ export interface TraceHop {
   name: string;
   system: string;
   timestampOffset: number; // ms from start
+  hopDurationMs?: number;  // duration of this hop alone
   status: 'ok' | 'slow' | 'failed';
   detail: string;
+  signalDbm?: number;      // radio signal strength
+  site?: string;           // COBRA site name
 }
 
 export interface KpiMetric {
@@ -422,126 +425,208 @@ export const incidents: Incident[] = [
 // ─── Synthetic Traces ──────────────────────────────────────────────────────────
 export const syntheticTraces: SyntheticTrace[] = [
   {
-    id: 'TRC-001',
-    locoId: 'CN 3864',
-    seqNum: 'PTC-SEQ-88421',
-    subdivision: 'Ruel',
-    startTime: '14:32:08',
-    status: 'failed',
-    latencyMs: 0,
+    id: 'TRC-001', locoId: 'CN 3864', seqNum: 'PTC-SEQ-88421', subdivision: 'Ruel',
+    startTime: '14:32:08', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #88421' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 120, status: 'ok', detail: 'Signal: -72 dBm (nominal)' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 340, status: 'ok', detail: 'Routed via Hornepayne site' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, status: 'failed', detail: 'Message not received — LIG socket closed' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #88421', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 120, hopDurationMs: 120, status: 'ok', detail: 'Transmitted to ground', signalDbm: -72, site: 'Hornepayne tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 340, hopDurationMs: 220, status: 'ok', detail: 'Routed via Hornepayne site', site: 'Hornepayne' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message not received — LIG socket closed', site: 'Toronto NOC' },
     ],
   },
   {
-    id: 'TRC-002',
-    locoId: 'CN 5501',
-    seqNum: 'PTC-SEQ-77103',
-    subdivision: 'Bala',
-    startTime: '14:28:41',
-    status: 'complete',
-    latencyMs: 890,
+    id: 'TRC-002', locoId: 'CN 5501', seqNum: 'PTC-SEQ-77103', subdivision: 'Bala',
+    startTime: '14:28:41', status: 'complete', latencyMs: 890,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #77103' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 210, status: 'ok', detail: 'Signal: -68 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 450, status: 'ok', detail: 'Routed via Barrie site' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 890, status: 'ok', detail: 'Acknowledged — authority granted' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #77103', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 210, hopDurationMs: 210, status: 'ok', detail: 'Clear signal, nominal', signalDbm: -68, site: 'Barrie tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 450, hopDurationMs: 240, status: 'ok', detail: 'Routed via Barrie site', site: 'Barrie' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 890, hopDurationMs: 440, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
     ],
   },
   {
-    id: 'TRC-003',
-    locoId: 'CN 2271',
-    seqNum: 'PTC-SEQ-91204',
-    subdivision: 'MacTier',
-    startTime: '14:19:00',
-    status: 'degraded',
-    latencyMs: 4200,
+    id: 'TRC-003', locoId: 'CN 2271', seqNum: 'PTC-SEQ-91204', subdivision: 'MacTier',
+    startTime: '14:19:00', status: 'degraded', latencyMs: 4200,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #91204' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 180, status: 'ok', detail: 'Signal: -74 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 520, status: 'slow', detail: 'Queue delay: 1,800ms (threshold: 500ms)' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 4200, status: 'slow', detail: 'Received after 4.2s — Trip Optimizer timeout' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #91204', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 180, hopDurationMs: 180, status: 'ok', detail: 'Signal nominal', signalDbm: -74, site: 'MacTier tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 520, hopDurationMs: 340, status: 'slow', detail: 'Queue delay: 1,800ms (threshold: 500ms)', site: 'Hornepayne' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 4200, hopDurationMs: 3680, status: 'slow', detail: 'Received after 4.2s — Trip Optimizer timeout', site: 'Toronto NOC' },
     ],
   },
   {
-    id: 'TRC-004',
-    locoId: 'CN 4412',
-    seqNum: 'PTC-SEQ-55812',
-    subdivision: 'Kingston',
-    startTime: '12:55:18',
-    status: 'failed',
-    latencyMs: 0,
+    id: 'TRC-004', locoId: 'CN 4412', seqNum: 'PTC-SEQ-55812', subdivision: 'Kingston',
+    startTime: '12:55:18', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #55812' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 95, status: 'ok', detail: 'Signal: -69 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 280, status: 'ok', detail: 'Routed via Napanee site' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, status: 'failed', detail: 'NSR — No status received from onboard I-ETMS' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #55812', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 95, hopDurationMs: 95, status: 'ok', detail: 'Signal clear', signalDbm: -69, site: 'Napanee tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 280, hopDurationMs: 185, status: 'ok', detail: 'Routed via Napanee site', site: 'Napanee' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'NSR — No status received from onboard I-ETMS', site: 'Toronto NOC' },
     ],
   },
   {
-    id: 'TRC-005',
-    locoId: 'CN 7701',
-    seqNum: 'PTC-SEQ-33901',
-    subdivision: 'Ruel',
-    startTime: '12:44:05',
-    status: 'degraded',
-    latencyMs: 6800,
+    id: 'TRC-005', locoId: 'CN 7701', seqNum: 'PTC-SEQ-33901', subdivision: 'Ruel',
+    startTime: '12:44:05', status: 'degraded', latencyMs: 6800,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #33901' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 310, status: 'slow', detail: 'Signal: -88 dBm (marginal)' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 1200, status: 'slow', detail: 'Hornepayne site degraded — queue backup' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 6800, status: 'slow', detail: 'Received after 6.8s — CDU display blank, crew unaware' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #33901', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 310, hopDurationMs: 310, status: 'slow', detail: 'Marginal signal, 3 retries', signalDbm: -88, site: 'Hornepayne tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 1200, hopDurationMs: 890, status: 'slow', detail: 'Hornepayne site degraded — queue backup', site: 'Hornepayne' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 6800, hopDurationMs: 5600, status: 'slow', detail: 'Received after 6.8s — CDU display blank, crew unaware', site: 'Toronto NOC' },
     ],
   },
   {
-    id: 'TRC-006',
-    locoId: 'CN 9201',
-    seqNum: 'PTC-SEQ-44120',
-    subdivision: 'Wainwright',
-    startTime: '12:18:28',
-    status: 'complete',
-    latencyMs: 720,
+    id: 'TRC-006', locoId: 'CN 9201', seqNum: 'PTC-SEQ-44120', subdivision: 'Wainwright',
+    startTime: '12:18:28', status: 'complete', latencyMs: 720,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #44120' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 140, status: 'ok', detail: 'Signal: -71 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 390, status: 'ok', detail: 'Routed via Wainwright site' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 720, status: 'ok', detail: 'Acknowledged — authority granted' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #44120', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 140, hopDurationMs: 140, status: 'ok', detail: 'Strong signal', signalDbm: -71, site: 'Wainwright tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 390, hopDurationMs: 250, status: 'ok', detail: 'Routed via Wainwright site', site: 'Wainwright' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 720, hopDurationMs: 330, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Edmonton NOC' },
     ],
   },
   {
-    id: 'TRC-007',
-    locoId: 'CN 5812',
-    seqNum: 'PTC-SEQ-66334',
-    subdivision: 'Edson',
-    startTime: '11:22:14',
-    status: 'failed',
-    latencyMs: 0,
+    id: 'TRC-007', locoId: 'CN 5812', seqNum: 'PTC-SEQ-66334', subdivision: 'Edson',
+    startTime: '11:22:14', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #66334' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 88, status: 'ok', detail: 'Signal: -75 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, status: 'failed', detail: 'Jasper COBRA site offline — no route available' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, status: 'failed', detail: 'Message never delivered — NSR raised' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #66334', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 88, hopDurationMs: 88, status: 'ok', detail: 'Signal nominal', signalDbm: -75, site: 'Jasper tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Jasper COBRA site offline — no route available', site: 'Jasper' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message never delivered — NSR raised', site: 'Edmonton NOC' },
     ],
   },
   {
-    id: 'TRC-008',
-    locoId: 'CN 2743',
-    seqNum: 'PTC-SEQ-22811',
-    subdivision: 'Bala',
-    startTime: '10:31:08',
-    status: 'complete',
-    latencyMs: 1050,
+    id: 'TRC-008', locoId: 'CN 2743', seqNum: 'PTC-SEQ-22811', subdivision: 'Bala',
+    startTime: '10:31:08', status: 'complete', latencyMs: 1050,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, status: 'ok', detail: 'Sent PTC msg #22811' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 200, status: 'ok', detail: 'Signal: -70 dBm' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 560, status: 'ok', detail: 'Routed via Barrie site' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 1050, status: 'ok', detail: 'Acknowledged — authority granted' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #22811', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 200, hopDurationMs: 200, status: 'ok', detail: 'Signal clear', signalDbm: -70, site: 'Barrie tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 560, hopDurationMs: 360, status: 'ok', detail: 'Routed via Barrie site', site: 'Barrie' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 1050, hopDurationMs: 490, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-009', locoId: 'CN 6612', seqNum: 'PTC-SEQ-10092', subdivision: 'Capreol',
+    startTime: '10:05:33', status: 'complete', latencyMs: 980,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #10092', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 155, hopDurationMs: 155, status: 'ok', detail: 'Signal nominal', signalDbm: -73, site: 'Capreol tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 420, hopDurationMs: 265, status: 'ok', detail: 'Routed via Capreol site', site: 'Capreol' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 980, hopDurationMs: 560, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-010', locoId: 'CN 8801', seqNum: 'PTC-SEQ-29944', subdivision: 'MacTier',
+    startTime: '09:48:12', status: 'degraded', latencyMs: 3100,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #29944', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 240, hopDurationMs: 240, status: 'slow', detail: 'Signal degraded, 2 retries', signalDbm: -84, site: 'MacTier tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 900, hopDurationMs: 660, status: 'slow', detail: 'MacTier site queue congested', site: 'MacTier' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 3100, hopDurationMs: 2200, status: 'slow', detail: 'Received after 3.1s — authority delayed', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-011', locoId: 'CN 3301', seqNum: 'PTC-SEQ-48821', subdivision: 'Rivers',
+    startTime: '09:22:55', status: 'complete', latencyMs: 810,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #48821', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 165, hopDurationMs: 165, status: 'ok', detail: 'Signal clear', signalDbm: -67, site: 'Rivers tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 410, hopDurationMs: 245, status: 'ok', detail: 'Routed via Rivers site', site: 'Rivers' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 810, hopDurationMs: 400, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Winnipeg NOC' },
+    ],
+  },
+  {
+    id: 'TRC-012', locoId: 'CN 4190', seqNum: 'PTC-SEQ-73301', subdivision: 'Kingston',
+    startTime: '09:11:44', status: 'failed', latencyMs: 0,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #73301', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Radio hardware fault — no transmission', signalDbm: -99, site: 'Kingston tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'No signal received from loco', site: 'Napanee' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message never delivered — NSR raised', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-013', locoId: 'CN 7120', seqNum: 'PTC-SEQ-81002', subdivision: 'Edson',
+    startTime: '08:55:30', status: 'complete', latencyMs: 660,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #81002', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 130, hopDurationMs: 130, status: 'ok', detail: 'Strong signal', signalDbm: -65, site: 'Edson tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 350, hopDurationMs: 220, status: 'ok', detail: 'Routed via Edson site', site: 'Edson' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 660, hopDurationMs: 310, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Edmonton NOC' },
+    ],
+  },
+  {
+    id: 'TRC-014', locoId: 'CN 5240', seqNum: 'PTC-SEQ-60011', subdivision: 'Wainwright',
+    startTime: '08:30:18', status: 'degraded', latencyMs: 5500,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #60011', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 290, hopDurationMs: 290, status: 'slow', detail: 'Weak signal in valley', signalDbm: -86, site: 'Wainwright tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 1400, hopDurationMs: 1110, status: 'slow', detail: 'Wainwright site high load', site: 'Wainwright' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 5500, hopDurationMs: 4100, status: 'slow', detail: 'Received after 5.5s — approaching enforcement threshold', site: 'Edmonton NOC' },
+    ],
+  },
+  {
+    id: 'TRC-015', locoId: 'CN 2090', seqNum: 'PTC-SEQ-19283', subdivision: 'Capreol',
+    startTime: '08:12:44', status: 'complete', latencyMs: 750,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #19283', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 145, hopDurationMs: 145, status: 'ok', detail: 'Signal nominal', signalDbm: -72, site: 'Capreol tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 395, hopDurationMs: 250, status: 'ok', detail: 'Routed via Capreol site', site: 'Capreol' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 750, hopDurationMs: 355, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-016', locoId: 'CN 6633', seqNum: 'PTC-SEQ-92100', subdivision: 'Bala',
+    startTime: '07:58:02', status: 'failed', latencyMs: 0,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #92100', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 175, hopDurationMs: 175, status: 'ok', detail: 'Signal clear', signalDbm: -70, site: 'Barrie tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 430, hopDurationMs: 255, status: 'ok', detail: 'Routed via Barrie site', site: 'Barrie' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'BOS process crash — message dropped', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-017', locoId: 'CN 1122', seqNum: 'PTC-SEQ-55001', subdivision: 'Rivers',
+    startTime: '07:41:19', status: 'complete', latencyMs: 920,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #55001', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 190, hopDurationMs: 190, status: 'ok', detail: 'Signal clear', signalDbm: -69, site: 'Rivers tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 480, hopDurationMs: 290, status: 'ok', detail: 'Routed via Rivers site', site: 'Rivers' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 920, hopDurationMs: 440, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Winnipeg NOC' },
+    ],
+  },
+  {
+    id: 'TRC-018', locoId: 'CN 9900', seqNum: 'PTC-SEQ-38811', subdivision: 'MacTier',
+    startTime: '07:22:05', status: 'complete', latencyMs: 830,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #38811', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 160, hopDurationMs: 160, status: 'ok', detail: 'Signal nominal', signalDbm: -71, site: 'MacTier tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 430, hopDurationMs: 270, status: 'ok', detail: 'Routed via MacTier site', site: 'MacTier' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 830, hopDurationMs: 400, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-019', locoId: 'CN 4455', seqNum: 'PTC-SEQ-11900', subdivision: 'Ruel',
+    startTime: '07:05:44', status: 'degraded', latencyMs: 2800,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #11900', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 220, hopDurationMs: 220, status: 'ok', detail: 'Signal nominal', signalDbm: -76, site: 'Hornepayne tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 600, hopDurationMs: 380, status: 'slow', detail: 'Hornepayne site partial outage', site: 'Hornepayne' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 2800, hopDurationMs: 2200, status: 'slow', detail: 'Received after 2.8s — marginal Trip Optimizer init', site: 'Toronto NOC' },
+    ],
+  },
+  {
+    id: 'TRC-020', locoId: 'CN 3388', seqNum: 'PTC-SEQ-77700', subdivision: 'Kingston',
+    startTime: '06:50:11', status: 'complete', latencyMs: 680,
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #77700', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 130, hopDurationMs: 130, status: 'ok', detail: 'Strong signal', signalDbm: -66, site: 'Kingston tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 360, hopDurationMs: 230, status: 'ok', detail: 'Routed via Kingston site', site: 'Kingston' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 680, hopDurationMs: 320, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
     ],
   },
 ];
+
+
 
 // ─── Asset Inventory ───────────────────────────────────────────────────────────
 export const assets: Asset[] = [
