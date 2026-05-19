@@ -1,6 +1,7 @@
 import Layout from "@/components/Layout";
 import { systemHealth } from "@/lib/mockData";
-import { Server, CheckCircle, AlertTriangle, XCircle, Info } from "lucide-react";
+import { Server, CheckCircle, AlertTriangle, XCircle, Info, KeyRound, ShieldCheck, ShieldAlert, ShieldOff, Clock } from "lucide-react";
+import { assets } from "@/lib/mockData";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, PieChart, Pie, Cell, Legend, RadialBarChart, RadialBar
@@ -118,6 +119,83 @@ export default function Systems() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* KES / Key Management Service Panel */}
+        {(() => {
+          const locos = assets.filter(a => a.type === 'locomotive');
+          const wius  = assets.filter(a => a.type === 'wayside');
+          const blOpkExpiring = locos.filter(a => a.blOpkStatus === 'EXPIRING' || a.blOpkStatus === 'EXPIRED').length;
+          const blOpkValid    = locos.filter(a => a.blOpkStatus === 'VALID').length;
+          const pollingOverdue = assets.filter(a => a.pollingStatus === 'OVERDUE').length;
+          const pollingMismatch = assets.filter(a => a.pollingStatus === 'MISMATCH').length;
+          const wOpkDeactivated = wius.filter(a => a.wOpkState === 'DEACTIVATED').length;
+          const wOpkPreActivation = wius.filter(a => a.wOpkState === 'PRE_ACTIVATION').length;
+
+          return (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="text-xs px-2 py-0.5 rounded border font-medium uppercase tracking-widest text-rose-400 bg-rose-500/10 border-rose-500/30 flex items-center gap-1">
+                  <KeyRound size={10} /> KES — Key Management Service
+                </div>
+                <div className="h-px flex-1 bg-border" />
+                <span className="text-[10px] text-muted-foreground">ITC S-9420 — OPK lifecycle monitoring</span>
+              </div>
+
+              {/* KES KPI row */}
+              <div className="grid grid-cols-6 gap-3 mb-3">
+                {[
+                  { label: 'BL-OPK Valid',      value: blOpkValid,        color: 'text-emerald-400', bg: 'bg-emerald-500/5 border-emerald-500/20',  icon: <ShieldCheck size={13} className="text-emerald-400" />, note: 'Locos with valid daily key' },
+                  { label: 'BL-OPK Expiring',   value: blOpkExpiring,     color: blOpkExpiring > 0 ? 'text-amber-400' : 'text-emerald-400', bg: blOpkExpiring > 0 ? 'bg-amber-500/5 border-amber-500/20' : 'bg-card border-border', icon: <ShieldAlert size={13} className={blOpkExpiring > 0 ? 'text-amber-400' : 'text-muted-foreground'} />, note: 'Renews every 24h via EMP 101/102' },
+                  { label: 'Polling Overdue',   value: pollingOverdue,    color: pollingOverdue > 0 ? 'text-amber-400' : 'text-emerald-400', bg: pollingOverdue > 0 ? 'bg-amber-500/5 border-amber-500/20' : 'bg-card border-border', icon: <Clock size={13} className={pollingOverdue > 0 ? 'text-amber-400' : 'text-muted-foreground'} />, note: 'EMP 02100/02110 overdue' },
+                  { label: 'Polling Mismatch',  value: pollingMismatch,   color: pollingMismatch > 0 ? 'text-red-400' : 'text-emerald-400', bg: pollingMismatch > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-card border-border', icon: <XCircle size={13} className={pollingMismatch > 0 ? 'text-red-400' : 'text-muted-foreground'} />, note: 'BOS state mismatch — NSR risk' },
+                  { label: 'W-OPK Pre-Active',  value: wOpkPreActivation, color: wOpkPreActivation > 0 ? 'text-amber-400' : 'text-emerald-400', bg: wOpkPreActivation > 0 ? 'bg-amber-500/5 border-amber-500/20' : 'bg-card border-border', icon: <ShieldAlert size={13} className={wOpkPreActivation > 0 ? 'text-amber-400' : 'text-muted-foreground'} />, note: 'WIU re-key in progress' },
+                  { label: 'W-OPK Deactivated', value: wOpkDeactivated,   color: wOpkDeactivated > 0 ? 'text-red-400' : 'text-emerald-400', bg: wOpkDeactivated > 0 ? 'bg-red-500/5 border-red-500/20' : 'bg-card border-border', icon: <ShieldOff size={13} className={wOpkDeactivated > 0 ? 'text-red-400' : 'text-muted-foreground'} />, note: 'WIU cannot reboot safely' },
+                ].map(k => (
+                  <div key={k.label} className={`rounded border p-3 ${k.bg}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-[9px] text-muted-foreground uppercase tracking-widest leading-tight">{k.label}</div>
+                      {k.icon}
+                    </div>
+                    <div className={`text-2xl font-bold font-mono ${k.color}`}>{k.value}</div>
+                    <div className="text-[9px] text-muted-foreground mt-1 leading-tight">{k.note}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* OPK Type Reference */}
+              <div className="bg-card border border-border rounded p-3">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-3">OPK Type Reference (ITC S-9420)</div>
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { type: 'BL-OPK', full: 'Baseline OPK', validity: '1 day', protects: 'Loco ↔ BOS session setup', priority: 'CRITICAL', note: 'Must renew daily via EMP 101/102 or loco cannot authenticate at next subdivision boundary' },
+                    { type: 'L-OPK',  full: 'Loco OPK',     validity: '5 years', protects: 'Loco ↔ BOS data channel', priority: 'STANDARD', note: 'Long-lived key; revocation is rare but immediate action required if compromised' },
+                    { type: 'W-OPK',  full: 'Wayside OPK',  validity: '5 years', protects: 'WIU config file encryption', priority: 'STANDARD', note: 'DEACTIVATED state means WIU cannot decrypt config on next reboot — latent fault' },
+                    { type: 'ED-OPK', full: 'Encryption/Decryption OPK', validity: '10 years', protects: 'Encrypts W-OPK file for BOS', priority: 'LOW', note: 'Longest-lived key; managed entirely by BOS back-office, no field action required' },
+                  ].map(opk => (
+                    <div key={opk.type} className={`rounded border p-2.5 ${
+                      opk.priority === 'CRITICAL' ? 'border-rose-500/30 bg-rose-500/5' :
+                      opk.priority === 'STANDARD' ? 'border-sky-500/20 bg-sky-500/5' :
+                      'border-border bg-muted/10'
+                    }`}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-mono font-bold text-foreground">{opk.type}</span>
+                        <span className={`text-[9px] px-1 py-0.5 rounded ${
+                          opk.priority === 'CRITICAL' ? 'bg-rose-500/20 text-rose-400' :
+                          opk.priority === 'STANDARD' ? 'bg-sky-500/20 text-sky-400' :
+                          'bg-muted/30 text-muted-foreground'
+                        }`}>{opk.priority}</span>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mb-1">{opk.full}</div>
+                      <div className="text-[9px] text-foreground/70 mb-1">Validity: <span className="font-mono">{opk.validity}</span></div>
+                      <div className="text-[9px] text-foreground/70 mb-1.5">Protects: {opk.protects}</div>
+                      <div className="text-[9px] text-muted-foreground leading-relaxed">{opk.note}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           );

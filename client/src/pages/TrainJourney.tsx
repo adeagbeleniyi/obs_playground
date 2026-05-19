@@ -1027,20 +1027,84 @@ export default function TrainJourney() {
                         </div>
                       </div>
 
-                      {/* KES key detail */}
+                      {/* ETC State Machine */}
                       <div className="rounded border border-border bg-card p-3">
-                        <div className="text-[10px] font-semibold text-foreground mb-2 flex items-center gap-2">
-                          <Lock size={11} className="text-violet-400"/>
-                          KES Key Details
+                        <div className="text-[10px] font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Activity size={11} className="text-sky-400"/>
+                          ETC Onboard State Machine (ITC Loco Initialization Spec)
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-[10px]">
-                          <div><span className="text-muted-foreground">Issued at: </span><span className="mono text-foreground">{ptcData.keysIssuedAt}</span></div>
-                          <div><span className="text-muted-foreground">Expires at: </span><span className={`mono font-bold ${kesCfg.color}`}>{ptcData.keysExpiresAt}</span></div>
-                          <div><span className="text-muted-foreground">Status: </span><span className={`font-bold ${kesCfg.color}`}>{ptcData.kesStatus}</span></div>
+                        <div className="flex items-center gap-1 mb-3 flex-wrap">
+                          {[
+                            { state: 'POWER UP',     color: 'text-slate-400',   bg: 'bg-slate-500/10 border-slate-500/30',   desc: 'I-ETMS booting, hardware self-check' },
+                            { state: 'SELF TEST',    color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/30',       desc: 'SW validation, DB integrity check' },
+                            { state: 'INITIALIZING', color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30',   desc: 'KES auth → BOS reg → Crew auth → Consist → Departure test → Polling → Authority request' },
+                            { state: 'ACTIVE',       color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', desc: 'MA received, polling active, enforcing PTC' },
+                            { state: 'CUT OUT',      color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30',   desc: 'PTC bypassed — requires supervisor override and incident log' },
+                            { state: 'FAILED',       color: 'text-red-400',     bg: 'bg-red-500/10 border-red-500/30',       desc: 'Unrecoverable fault — mandatory stop, maintenance required' },
+                          ].map((s, i, arr) => (
+                            <>
+                              <div key={s.state} className={`rounded border px-2 py-1.5 text-center min-w-[90px] ${
+                                (ptcData.overallStatus === 'NOMINAL' && s.state === 'ACTIVE') ||
+                                (ptcData.overallStatus === 'INITIALIZING' && s.state === 'INITIALIZING') ||
+                                (ptcData.overallStatus === 'DEGRADED' && s.state === 'CUT OUT') ||
+                                (ptcData.overallStatus === 'FAILED' && s.state === 'FAILED')
+                                  ? `${s.bg} ring-1 ring-offset-1 ring-offset-background ${s.color.replace('text-','ring-')}`
+                                  : 'bg-card border-border'
+                              }`}>
+                                <div className={`text-[9px] font-bold mono ${s.color}`}>{s.state}</div>
+                                <div className="text-[8px] text-muted-foreground mt-0.5 leading-tight">{s.desc.split(' — ')[0]}</div>
+                              </div>
+                              {i < arr.length - 1 && i !== 3 && (
+                                <ChevronRight key={`arr-${i}`} size={10} className="text-zinc-600 flex-shrink-0"/>
+                              )}
+                            </>
+                          ))}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground leading-relaxed p-2 rounded bg-border/20">
+                          <span className="font-semibold text-foreground">INITIALIZING phase breakdown (EMP message sequence): </span>
+                          <span className="mono text-violet-400">101 BL-OPK</span> (KES auth) →
+                          <span className="mono text-sky-400 ml-1">02000 Crew Auth</span> →
+                          <span className="mono text-sky-400 ml-1">02030 Consist</span> →
+                          <span className="mono text-sky-400 ml-1">02010 Departure Test</span> →
+                          <span className="mono text-sky-400 ml-1">02100 Polling Start</span> →
+                          <span className="mono text-sky-400 ml-1">02050 Authority Request</span> →
+                          <span className="mono text-emerald-400 ml-1">02060 Authority Response (MA)</span>.
+                          CUT OUT requires a supervisor-level override (EMP <span className="mono">02200</span>) and generates an automatic ITCSM security event.
+                        </div>
+                      </div>
+
+                      {/* EMP OPK Type Reference */}
+                      <div className="rounded border border-border bg-card p-3">
+                        <div className="text-[10px] font-semibold text-foreground mb-3 flex items-center gap-2">
+                          <Key size={11} className="text-violet-400"/>
+                          KES OPK Type Reference (ITC S-9420)
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          {[
+                            { type: 'BL-OPK', full: 'Baseline OPK', validity: '1 day', scope: 'Loco ↔ BOS session setup', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', critical: true },
+                            { type: 'L-OPK',  full: 'Loco OPK',     validity: '5 years', scope: 'Loco ↔ BOS data channel', color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30', critical: false },
+                            { type: 'W-OPK',  full: 'WIU OPK',      validity: '5 years', scope: 'WIU config file encryption', color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/30', critical: false },
+                            { type: 'ED-OPK', full: 'Encrypt-Decrypt OPK', validity: '10 years', scope: 'Encrypts W-OPK for BOS delivery', color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', critical: false },
+                          ].map(k => (
+                            <div key={k.type} className={`rounded border p-2 ${k.bg}`}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className={`text-[10px] font-mono font-bold ${k.color}`}>{k.type}</span>
+                                <span className="text-[8px] text-muted-foreground">{k.validity}</span>
+                                {k.critical && <span className="text-[8px] font-bold text-red-400 bg-red-500/10 px-1 rounded">DAILY</span>}
+                              </div>
+                              <div className="text-[9px] text-foreground font-medium">{k.full}</div>
+                              <div className="text-[9px] text-muted-foreground mt-0.5">{k.scope}</div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 text-[10px] border-t border-border pt-2">
+                          <div><span className="text-muted-foreground">BL-OPK Issued: </span><span className="mono text-foreground">{ptcData.keysIssuedAt}</span></div>
+                          <div><span className="text-muted-foreground">BL-OPK Expires: </span><span className={`mono font-bold ${kesCfg.color}`}>{ptcData.keysExpiresAt}</span></div>
+                          <div><span className="text-muted-foreground">KES Status: </span><span className={`font-bold ${kesCfg.color}`}>{ptcData.kesStatus}</span></div>
                           <div><span className="text-muted-foreground">BOS Region: </span><span className="text-foreground">{ptcData.bosRegion}</span></div>
                         </div>
                         <div className="mt-2 p-2 rounded bg-border/20 text-[10px] text-muted-foreground leading-relaxed">
-                          Keys are issued by the KES to the I-ETMS onboard computer at the start of each trip. They are valid for 24 hours and are used to encrypt all communications between the locomotive and the BOS. If keys expire or are revoked, the locomotive must stop and request new keys before movement can resume under PTC enforcement.
+                          The <span className="font-semibold text-foreground">BL-OPK</span> is the most time-sensitive key — it expires every 24 hours. Every locomotive must exchange a new BL-OPK before the expiry or it will fail BOS authentication at the next subdivision boundary. A deactivated <span className="font-semibold text-foreground">W-OPK</span> is a latent fault: the WIU operates normally until it reboots, at which point it cannot decrypt its config file.
                         </div>
                       </div>
                     </div>

@@ -3,7 +3,43 @@ import Layout from "@/components/Layout";
 import { assets } from "@/lib/mockData";
 import { LOCOMOTIVE_DETAILS, CAR_RECORDS, getLocosForTrain, type LocomotiveDetail, type ComponentStatus } from "@/lib/consistData";
 import { FLEET_SNAPSHOT } from "@/lib/fleetData";
-import { Train, Radio, MapPin, Clock, Cpu, Satellite, Search, Filter, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, XCircle, Thermometer, Zap, Gauge, Fuel, Wind, Wrench } from "lucide-react";
+import { Train, Radio, MapPin, Clock, Cpu, Satellite, Search, Filter, ChevronDown, ChevronRight, AlertTriangle, CheckCircle, XCircle, Thermometer, Zap, Gauge, Fuel, Wind, Wrench, ShieldCheck, ShieldAlert, ShieldOff, KeyRound, Activity } from "lucide-react";
+import type { ETCState, WOPKState } from "@/lib/mockData";
+
+// ─── ETC State helpers ────────────────────────────────────────────────────────
+const etcStateColor: Record<ETCState, string> = {
+  POWER_UP:    'bg-slate-500/10 text-slate-400 border-slate-500/30',
+  SELF_TEST:   'bg-sky-500/10 text-sky-400 border-sky-500/30',
+  INITIALIZING:'bg-amber-500/10 text-amber-400 border-amber-500/30',
+  ACTIVE:      'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+  CUT_OUT:     'bg-orange-500/10 text-orange-400 border-orange-500/30',
+  FAILED:      'bg-red-500/10 text-red-400 border-red-500/30',
+  NOT_EQUIPPED:'bg-muted/20 text-muted-foreground border-border',
+};
+
+const blOpkStatusColor: Record<string, string> = {
+  VALID:    'text-emerald-400',
+  EXPIRING: 'text-amber-400',
+  EXPIRED:  'text-red-400',
+  REVOKED:  'text-red-400',
+};
+
+const wOpkStateColor: Record<WOPKState, string> = {
+  ACTIVE:         'text-emerald-400',
+  PRE_ACTIVATION: 'text-amber-400',
+  DEACTIVATED:    'text-red-400',
+  UNKNOWN:        'text-slate-500',
+};
+
+function formatOpkExpiry(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  const now = new Date();
+  const diffH = Math.round((d.getTime() - now.getTime()) / 3_600_000);
+  if (diffH < 0) return 'EXPIRED';
+  if (diffH < 2) return `${Math.round((d.getTime() - now.getTime()) / 60_000)} min`;
+  return `${diffH}h`;
+}
 
 // ─── Status helpers ────────────────────────────────────────────────────────────
 const statusColor: Record<string, string> = {
@@ -255,6 +291,78 @@ function LocoAssetCard({ asset }: { asset: typeof assets[0] }) {
       <div className="flex items-center gap-3 mb-3 text-[11px] text-muted-foreground">
         <div className="flex items-center gap-1"><Clock size={10} /><span>{asset.lastSeen}</span></div>
       </div>
+
+      {/* ETC State + KES/OPK Panel */}
+      {(asset.etcState || asset.blOpkStatus || asset.pollingStatus) && (
+        <div className="mb-3 rounded border border-border bg-muted/10 p-2.5">
+          <div className="text-[9px] text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1">
+            <KeyRound size={9} /> ETC State &amp; Key Management
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {/* ETC State */}
+            {asset.etcState && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-muted-foreground">ETC:</span>
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${etcStateColor[asset.etcState]}`}>
+                  {asset.etcState.replace(/_/g, ' ')}
+                </span>
+              </div>
+            )}
+            {/* BL-OPK */}
+            {asset.blOpkStatus && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-muted-foreground">BL-OPK:</span>
+                <span className={`text-[10px] font-mono font-medium ${blOpkStatusColor[asset.blOpkStatus]}`}>
+                  {asset.blOpkStatus}
+                </span>
+                {asset.blOpkExpiresAt && (
+                  <span className={`text-[9px] ${asset.blOpkStatus === 'EXPIRING' ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                    (expires in {formatOpkExpiry(asset.blOpkExpiresAt)})
+                  </span>
+                )}
+              </div>
+            )}
+            {/* Polling */}
+            {asset.pollingStatus && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-muted-foreground">Polling:</span>
+                <span className={`text-[10px] font-medium flex items-center gap-0.5 ${
+                  asset.pollingStatus === 'OK'       ? 'text-emerald-400' :
+                  asset.pollingStatus === 'OVERDUE'  ? 'text-amber-400' :
+                  'text-red-400'
+                }`}>
+                  {asset.pollingStatus === 'OK' ? <CheckCircle size={10} /> : <AlertTriangle size={10} />}
+                  {asset.pollingStatus}
+                  {asset.lastPollAt && <span className="text-[9px] text-muted-foreground ml-1">({asset.lastPollAt})</span>}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* W-OPK for wayside assets */}
+      {asset.wOpkState && (
+        <div className="mb-3 rounded border border-border bg-muted/10 p-2.5">
+          <div className="text-[9px] text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1">
+            <KeyRound size={9} /> W-OPK State
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-medium ${wOpkStateColor[asset.wOpkState]}`}>
+              {asset.wOpkState === 'ACTIVE'         ? <ShieldCheck size={11} className="inline mr-1" /> :
+               asset.wOpkState === 'PRE_ACTIVATION' ? <ShieldAlert size={11} className="inline mr-1" /> :
+               <ShieldOff size={11} className="inline mr-1" />}
+              {asset.wOpkState.replace(/_/g, ' ')}
+            </span>
+            {asset.wOpkState === 'PRE_ACTIVATION' && (
+              <span className="text-[9px] text-amber-300">KES re-key in progress — WIU will use new key on next reboot</span>
+            )}
+            {asset.wOpkState === 'DEACTIVATED' && (
+              <span className="text-[9px] text-red-300">WIU cannot decrypt config on next reboot — immediate KES action required</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Standard detail grid */}
       <div className="grid grid-cols-2 gap-1.5 mb-3">

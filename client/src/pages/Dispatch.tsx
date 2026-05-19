@@ -446,6 +446,39 @@ export default function Dispatch() {
         {/* ═══ TAB: DISPATCHED TRAINS ═══ */}
         {activeTab === "trains" && (
           <div className="space-y-3">
+            {/* PTC Authority Type Taxonomy (from ATS Movement Authority spec) */}
+            <div className="bg-card border border-border rounded p-3">
+              <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Shield size={10} /> PTC Movement Authority Types (ATS / ETC Spec)
+              </div>
+              <div className="grid grid-cols-4 gap-2 mb-2">
+                {[
+                  { type: 'Conditional Authority (CA)', abbr: 'CA', color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/30', desc: 'Authority conditional on a preceding train clearing the block. Must not be acknowledged until the condition is met. Unacknowledged CA is a safety-critical state.' },
+                  { type: 'Protect Against Train (PAT)', abbr: 'PAT', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', desc: 'Issued when a following train must be protected against a preceding movement. Triggers a Restrictive Target on the following train\'s I-ETMS.' },
+                  { type: 'After Arrival Clearance (AAC)', abbr: 'AAC', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', desc: 'Authority issued after the preceding train has confirmed arrival at a siding or station. Clears the block for the following movement.' },
+                  { type: 'General Block Order (GBO)', abbr: 'GBO', color: 'text-sky-400', bg: 'bg-sky-500/10 border-sky-500/30', desc: 'Blanket authority covering a defined block. Used for maintenance windows and track occupancy. All trains in the block must hold.' },
+                  { type: 'Track Segment Authority (TSR)', abbr: 'TSR', color: 'text-teal-400', bg: 'bg-teal-500/10 border-teal-500/30', desc: 'Speed restriction authority for a specific track segment. Enforced by I-ETMS as a Restrictive Target with a mandatory speed ceiling.' },
+                  { type: 'Yard Limit Authority (YLA)', abbr: 'YLA', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/30', desc: 'Authority within yard limits where PTC enforcement is reduced. Crew must operate at restricted speed under yard rules.' },
+                  { type: 'Restricted Speed Authority (RSA)', abbr: 'RSA', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30', desc: 'Requires crew to operate at restricted speed prepared to stop within half the range of vision. Issued when signal indication is unknown.' },
+                  { type: 'Emergency Authority (EA)', abbr: 'EA', color: 'text-red-500', bg: 'bg-red-600/10 border-red-600/40', desc: 'Issued by RTC in emergency conditions. Overrides normal authority hierarchy. All other authorities in the block are superseded.' },
+                ].map(a => (
+                  <div key={a.abbr} className={`rounded border p-2 ${a.bg}`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-[10px] font-mono font-bold ${a.color}`}>{a.abbr}</span>
+                      <span className="text-[8px] text-muted-foreground">{a.type.split(' (')[0].split(' ').slice(0,2).join(' ')}</span>
+                    </div>
+                    <div className="text-[9px] text-muted-foreground leading-relaxed">{a.desc}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded border border-amber-500/20 bg-amber-500/5 p-2 flex items-start gap-2">
+                <AlertTriangle size={10} className="text-amber-400 mt-0.5 flex-shrink-0"/>
+                <div className="text-[9px] text-amber-300 leading-relaxed">
+                  <span className="font-semibold">Restrictive Target (RT):</span> Any authority type that creates a mandatory speed or stop constraint on the I-ETMS. An unacknowledged RT means the locomotive is operating without confirmed awareness of the constraint — this is a critical safety state requiring immediate RTC action.
+                </div>
+              </div>
+            </div>
+
             {/* Context note */}
             <div className="rounded border border-sky-500/20 bg-sky-500/5 p-3 flex items-start gap-2">
               <Info size={12} className="text-sky-400 mt-0.5 flex-shrink-0"/>

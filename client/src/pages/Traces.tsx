@@ -504,7 +504,10 @@ export default function Traces() {
                   Latency Waterfall
                 </th>
                 <th className="text-left px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-                  Seq #
+                  EMP Message
+                </th>
+                <th className="text-left px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                  ETC Phase
                 </th>
                 <th className="text-right px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium cursor-pointer select-none hover:text-foreground"
                   onClick={() => toggleSort('startTime')}>
@@ -557,9 +560,31 @@ export default function Traces() {
                       <td className="px-3 py-3" style={{ minWidth: 200 }}>
                         <LatencyWaterfall trace={trace} />
                       </td>
-                      {/* Seq # */}
+                      {/* EMP Message */}
                       <td className="px-3 py-3">
-                        <span className="font-mono text-[10px] text-muted-foreground">{trace.seqNum}</span>
+                        {trace.empMessageType ? (
+                          <span className="font-mono text-[10px] text-sky-300 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded" title={trace.seqNum}>
+                            {trace.empMessageType.replace(/_/g, ' ')}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] text-muted-foreground">{trace.seqNum}</span>
+                        )}
+                      </td>
+                      {/* ETC Phase */}
+                      <td className="px-3 py-3">
+                        {trace.etcPhase ? (
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
+                            trace.etcPhase === 'AUTHORITY'      ? 'bg-violet-500/10 text-violet-300 border-violet-500/20' :
+                            trace.etcPhase === 'POLLING'        ? 'bg-sky-500/10 text-sky-300 border-sky-500/20' :
+                            trace.etcPhase === 'CREW_AUTH'      ? 'bg-amber-500/10 text-amber-300 border-amber-500/20' :
+                            trace.etcPhase === 'CONSIST'        ? 'bg-teal-500/10 text-teal-300 border-teal-500/20' :
+                            trace.etcPhase === 'SW_VALIDATION'  ? 'bg-rose-500/10 text-rose-300 border-rose-500/20' :
+                            trace.etcPhase === 'DEPARTURE_TEST' ? 'bg-orange-500/10 text-orange-300 border-orange-500/20' :
+                            'bg-muted/20 text-muted-foreground border-border'
+                          }`}>
+                            {trace.etcPhase.replace(/_/g, ' ')}
+                          </span>
+                        ) : <span className="text-muted-foreground">—</span>}
                       </td>
                       {/* Time */}
                       <td className="px-3 py-3 text-right">
@@ -575,7 +600,7 @@ export default function Traces() {
                     </tr>
                     {isExpanded && (
                       <tr className="border-b border-border/50">
-                        <td colSpan={9} className="p-0">
+                        <td colSpan={11} className="p-0">
                           <TraceDetailPanel trace={trace} />
                         </td>
                       </tr>
@@ -585,7 +610,7 @@ export default function Traces() {
               })}
               {paged.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground text-xs">
+                  <td colSpan={11} className="px-4 py-10 text-center text-muted-foreground text-xs">
                     No traces match the current filters.
                     {hasFilters && (
                       <button onClick={clearFilters} className="ml-2 underline hover:text-foreground">Clear filters</button>

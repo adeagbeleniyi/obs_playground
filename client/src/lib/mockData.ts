@@ -20,6 +20,11 @@ export interface Incident {
   aiResolved?: boolean;
 }
 
+// KES OPK state for wayside units
+export type WOPKState = 'ACTIVE' | 'PRE_ACTIVATION' | 'DEACTIVATED' | 'UNKNOWN';
+// ETC state machine for locomotives
+export type ETCState = 'POWER_UP' | 'SELF_TEST' | 'INITIALIZING' | 'ACTIVE' | 'CUT_OUT' | 'FAILED' | 'NOT_EQUIPPED';
+
 export interface Asset {
   id: string;
   name: string;
@@ -30,12 +35,51 @@ export interface Asset {
   lastSeen: string;
   system: SystemTag;
   details: Record<string, string>;
+  // KES / OPK fields
+  etcState?: ETCState;          // Locomotive ETC state machine state
+  blOpkExpiresAt?: string;      // BL-OPK expiry (ISO timestamp) — refreshes every 24h
+  blOpkIssuedAt?: string;       // When BL-OPK was last issued
+  blOpkStatus?: 'VALID' | 'EXPIRING' | 'EXPIRED' | 'REVOKED'; // EXPIRING = <2h remaining
+  wOpkState?: WOPKState;        // W-OPK state for WIU devices
+  pollingStatus?: 'OK' | 'OVERDUE' | 'MISMATCH'; // Polling health
+  lastPollAt?: string;          // Last successful poll timestamp
 }
+
+// EMP message type taxonomy from ATS Movement Authority spec
+export type EMPMessageType =
+  | '02000_CREW_AUTH'          // Crew Authentication
+  | '02010_CREW_AUTH_RESP'     // Crew Authentication Response
+  | '02030_CONSIST'            // Consist Registration
+  | '02040_CONSIST_RESP'       // Consist Registration Response
+  | '02050_AUTH_REQUEST'       // Movement Authority Request
+  | '02060_AUTH_RESPONSE'      // Movement Authority Response
+  | '02070_AUTH_RENEWAL'       // Movement Authority Renewal
+  | '02080_AUTH_RENEWAL_RESP'  // Movement Authority Renewal Response
+  | '02090_POSITION_REPORT'    // Continuous Position Report
+  | '02100_POLLING'            // Polling / Keep-Alive
+  | '02110_POLLING_RESP'       // Polling Response
+  | '06200_WASP_ALERT'         // WASP Detector Alert
+  | '06250_WASP_STALE'         // WASP Stale Data Alert
+  | '10209_ASSET_DATA'         // Asset Data (daily refresh)
+  | '101_BL_OPK_REQUEST'       // BL-OPK Key Exchange Request (KES)
+  | '102_BL_OPK_RESPONSE';     // BL-OPK Key Exchange Response (KES)
+
+// ETC initialization phase groupings
+export type ETCPhase =
+  | 'FAULT_REPORTING'
+  | 'SW_VALIDATION'
+  | 'CREW_AUTH'
+  | 'CONSIST'
+  | 'DEPARTURE_TEST'
+  | 'POLLING'
+  | 'AUTHORITY';
 
 export interface SyntheticTrace {
   id: string;
   locoId: string;
   seqNum: string;
+  empMessageType?: EMPMessageType;  // EMP message number from ATS spec
+  etcPhase?: ETCPhase;              // Which initialization phase this trace belongs to
   subdivision: string;
   startTime: string;
   hops: TraceHop[];
@@ -420,48 +464,153 @@ export const incidents: Incident[] = [
     mttr: 31,
     aiResolved: false,
   },
+  // ─── KMS / KES Security Events (ITC S-9420) ────────────────────────────────
+  {
+    id: 'KES-20250514-001',
+    title: 'SMPK Signature Verification Failed — Possible MITM Attack (CN 3864)',
+    severity: 'critical',
+    system: 'KES',
+    loco: 'CN 3864',
+    subdivision: 'Ruel',
+    milepost: '142.3',
+    timestamp: '2025-05-14T14:35:00Z',
+    status: 'investigating',
+    tag: 'Security',
+    assignedTo: 'Cybersecurity Team',
+    aiResolved: false,
+  },
+  {
+    id: 'KES-20250514-002',
+    title: 'Unable to Create BL-OPK — CN 5501 (Bala Sub)',
+    severity: 'critical',
+    system: 'KES',
+    loco: 'CN 5501',
+    subdivision: 'Bala',
+    timestamp: '2025-05-14T13:20:00Z',
+    status: 'open',
+    tag: 'Security',
+    assignedTo: 'KMS Operations',
+    aiResolved: false,
+  },
+  {
+    id: 'KES-20250514-003',
+    title: 'BL-OPK Expiring in < 2h — CN 7701, CN 9201, CN 4412 (3 Locos)',
+    severity: 'warning',
+    system: 'KES',
+    timestamp: '2025-05-14T12:00:00Z',
+    status: 'open',
+    tag: 'Security',
+    assignedTo: 'KMS Operations',
+    aiResolved: false,
+  },
+  {
+    id: 'KES-20250514-004',
+    title: 'W-OPK Deactivated — WIU MP 201.0 (Capreol Sub) — Latent Reboot Fault',
+    severity: 'warning',
+    system: 'KES',
+    subdivision: 'Capreol',
+    milepost: '201.0',
+    timestamp: '2025-05-14T11:45:00Z',
+    status: 'open',
+    tag: 'Security',
+    assignedTo: 'Signals Team',
+    aiResolved: false,
+  },
+  {
+    id: 'KES-20250514-005',
+    title: 'Create BL-OPK Potential Security Attack — CN 2271 (MacTier Sub)',
+    severity: 'critical',
+    system: 'KES',
+    loco: 'CN 2271',
+    subdivision: 'MacTier',
+    timestamp: '2025-05-14T10:10:00Z',
+    status: 'resolved',
+    tag: 'Security',
+    assignedTo: 'Cybersecurity Team',
+    mttr: 45,
+    aiResolved: false,
+  },
+  {
+    id: 'KES-20250514-006',
+    title: 'No W-OPK Found for WIU — MP 44.5 (Bala Sub) — Config Decrypt Risk',
+    severity: 'warning',
+    system: 'KES',
+    subdivision: 'Bala',
+    milepost: '44.5',
+    timestamp: '2025-05-14T09:55:00Z',
+    status: 'resolved',
+    tag: 'Security',
+    assignedTo: 'Signals Team',
+    mttr: 22,
+    aiResolved: false,
+  },
+  // ─── Polling / EMP 02100 Events ───────────────────────────────────────────────
+  {
+    id: 'POLL-20250514-001',
+    title: 'Polling Overdue > 5 min — CN 8012 (Wainwright Sub)',
+    severity: 'warning',
+    system: 'BOS',
+    loco: 'CN 8012',
+    subdivision: 'Wainwright',
+    milepost: '55.1',
+    timestamp: '2025-05-14T13:05:00Z',
+    status: 'open',
+    tag: 'OB to Wayside',
+    assignedTo: 'PTC-LOCOMOTIVE-IETMS-SUPPORT',
+    aiResolved: false,
+  },
+  {
+    id: 'POLL-20250514-002',
+    title: 'Polling State Mismatch — CN 5812 Authority vs BOS Record (Edson Sub)',
+    severity: 'critical',
+    system: 'BOS',
+    loco: 'CN 5812',
+    subdivision: 'Edson',
+    milepost: '80.2',
+    timestamp: '2025-05-14T11:18:00Z',
+    status: 'investigating',
+    tag: 'NSR',
+    assignedTo: 'PTC-LOCOMOTIVE-IETMS-SUPPORT',
+    aiResolved: false,
+  },
 ];
 
 // ─── Synthetic Traces ──────────────────────────────────────────────────────────
 export const syntheticTraces: SyntheticTrace[] = [
-  {
-    id: 'TRC-001', locoId: 'CN 3864', seqNum: 'PTC-SEQ-88421', subdivision: 'Ruel',
+  { id: 'TRC-001', locoId: 'CN 3864', seqNum: '02090', empMessageType: '02090_POSITION_REPORT', etcPhase: 'POLLING', subdivision: 'Ruel',
     startTime: '14:32:08', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #88421', site: 'On-board' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02090 Position Report transmitted — LIG socket fault detected post-send', site: 'On-board' },
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 120, hopDurationMs: 120, status: 'ok', detail: 'Transmitted to ground', signalDbm: -72, site: 'Hornepayne tower' },
       { name: 'COBRA Site', system: 'COBRA', timestampOffset: 340, hopDurationMs: 220, status: 'ok', detail: 'Routed via Hornepayne site', site: 'Hornepayne' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message not received — LIG socket closed', site: 'Toronto NOC' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'EMP 02090 not received — LIG socket closed, NSR flag raised in BOS', site: 'Toronto NOC' },
     ],
   },
-  {
-    id: 'TRC-002', locoId: 'CN 5501', seqNum: 'PTC-SEQ-77103', subdivision: 'Bala',
+  { id: 'TRC-002', locoId: 'CN 5501', seqNum: '02060', empMessageType: '02060_AUTH_RESPONSE', etcPhase: 'AUTHORITY', subdivision: 'Bala',
     startTime: '14:28:41', status: 'complete', latencyMs: 890,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #77103', site: 'On-board' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02050 Authority Request sent — requesting MP 88.7 → MP 130.0', site: 'On-board' },
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 210, hopDurationMs: 210, status: 'ok', detail: 'Clear signal, nominal', signalDbm: -68, site: 'Barrie tower' },
       { name: 'COBRA Site', system: 'COBRA', timestampOffset: 450, hopDurationMs: 240, status: 'ok', detail: 'Routed via Barrie site', site: 'Barrie' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 890, hopDurationMs: 440, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 890, hopDurationMs: 440, status: 'ok', detail: 'EMP 02060 Authority Response — MA issued MP 88.7 → MP 130.0, 60 mph, expires 15:28', site: 'Toronto NOC' },
     ],
   },
-  {
-    id: 'TRC-003', locoId: 'CN 2271', seqNum: 'PTC-SEQ-91204', subdivision: 'MacTier',
+  { id: 'TRC-003', locoId: 'CN 2271', seqNum: '02030', empMessageType: '02030_CONSIST', etcPhase: 'CONSIST', subdivision: 'MacTier',
     startTime: '14:19:00', status: 'degraded', latencyMs: 4200,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #91204', site: 'On-board' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02030 Consist Registration sent — 82 cars, 17,400 tons, 5,180 ft', site: 'On-board' },
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 180, hopDurationMs: 180, status: 'ok', detail: 'Signal nominal', signalDbm: -74, site: 'MacTier tower' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 520, hopDurationMs: 340, status: 'slow', detail: 'Queue delay: 1,800ms (threshold: 500ms)', site: 'Hornepayne' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 4200, hopDurationMs: 3680, status: 'slow', detail: 'Received after 4.2s — Trip Optimizer timeout', site: 'Toronto NOC' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 520, hopDurationMs: 340, status: 'slow', detail: 'Queue delay: 1,800ms (threshold: 500ms) — Hornepayne site congested', site: 'Hornepayne' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 4200, hopDurationMs: 3680, status: 'slow', detail: 'EMP 02040 Consist Response after 4.2s — Trip Optimizer initialization timeout', site: 'Toronto NOC' },
     ],
   },
-  {
-    id: 'TRC-004', locoId: 'CN 4412', seqNum: 'PTC-SEQ-55812', subdivision: 'Kingston',
+  { id: 'TRC-004', locoId: 'CN 4412', seqNum: '02100', empMessageType: '02100_POLLING', etcPhase: 'POLLING', subdivision: 'Kingston',
     startTime: '12:55:18', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #55812', site: 'On-board' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02100 Polling request sent — expected 02110 response within 30s', site: 'On-board' },
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 95, hopDurationMs: 95, status: 'ok', detail: 'Signal clear', signalDbm: -69, site: 'Napanee tower' },
       { name: 'COBRA Site', system: 'COBRA', timestampOffset: 280, hopDurationMs: 185, status: 'ok', detail: 'Routed via Napanee site', site: 'Napanee' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'NSR — No status received from onboard I-ETMS', site: 'Toronto NOC' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'EMP 02110 Polling Response not received — NSR flag raised, BOS polling mismatch detected', site: 'Toronto NOC' },
     ],
   },
   {
@@ -484,14 +633,13 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 720, hopDurationMs: 330, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Edmonton NOC' },
     ],
   },
-  {
-    id: 'TRC-007', locoId: 'CN 5812', seqNum: 'PTC-SEQ-66334', subdivision: 'Edson',
+  { id: 'TRC-007', locoId: 'CN 5812', seqNum: '101', empMessageType: '101_BL_OPK_REQUEST', etcPhase: 'SW_VALIDATION', subdivision: 'Edson',
     startTime: '11:22:14', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #66334', site: 'On-board' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 101 BL-OPK Key Exchange Request sent to KES — daily key renewal', site: 'On-board' },
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 88, hopDurationMs: 88, status: 'ok', detail: 'Signal nominal', signalDbm: -75, site: 'Jasper tower' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Jasper COBRA site offline — no route available', site: 'Jasper' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message never delivered — NSR raised', site: 'Edmonton NOC' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Jasper COBRA site offline — KES request cannot be routed', site: 'Jasper' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'EMP 102 BL-OPK Response never received — loco cannot authenticate at next subdivision boundary', site: 'Edmonton NOC' },
     ],
   },
   {
@@ -534,14 +682,13 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 810, hopDurationMs: 400, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Winnipeg NOC' },
     ],
   },
-  {
-    id: 'TRC-012', locoId: 'CN 4190', seqNum: 'PTC-SEQ-73301', subdivision: 'Kingston',
+  { id: 'TRC-012', locoId: 'CN 4190', seqNum: '02000', empMessageType: '02000_CREW_AUTH', etcPhase: 'CREW_AUTH', subdivision: 'Kingston',
     startTime: '09:11:44', status: 'failed', latencyMs: 0,
     hops: [
-      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #73301', site: 'On-board' },
-      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Radio hardware fault — no transmission', signalDbm: -99, site: 'Kingston tower' },
-      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'No signal received from loco', site: 'Napanee' },
-      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Message never delivered — NSR raised', site: 'Toronto NOC' },
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02000 Crew Authentication request prepared — Crew ID CRW-4190', site: 'On-board' },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'Radio hardware fault — no transmission possible, signal -99 dBm', signalDbm: -99, site: 'Kingston tower' },
+      { name: 'COBRA Site', system: 'COBRA', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'No signal received from loco — COBRA site cannot relay', site: 'Napanee' },
+      { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'EMP 02010 Crew Auth Response never delivered — crew cannot be authenticated, departure blocked', site: 'Toronto NOC' },
     ],
   },
   {
@@ -630,19 +777,19 @@ export const syntheticTraces: SyntheticTrace[] = [
 
 // ─── Asset Inventory ───────────────────────────────────────────────────────────
 export const assets: Asset[] = [
-  { id: 'LOCO-3864', name: 'CN 3864', type: 'locomotive', status: 'critical', subdivision: 'Ruel', milepost: '142.3', lastSeen: '2 min ago', system: 'OWL', details: { 'PTC State': 'Enforcement', 'LIG': 'Disconnected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' } },
-  { id: 'LOCO-5501', name: 'CN 5501', type: 'locomotive', status: 'operational', subdivision: 'Bala', milepost: '88.7', lastSeen: '30 sec ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' } },
-  { id: 'LOCO-2271', name: 'CN 2271', type: 'locomotive', status: 'warning', subdivision: 'MacTier', lastSeen: '1 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Failed Init' } },
-  { id: 'LOCO-8012', name: 'CN 8012', type: 'locomotive', status: 'operational', subdivision: 'Kingston', lastSeen: '45 sec ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' } },
-  { id: 'LOCO-4412', name: 'CN 4412', type: 'locomotive', status: 'critical', subdivision: 'Kingston', milepost: '188.4', lastSeen: '5 min ago', system: 'OWL', details: { 'PTC State': 'NSR', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' } },
-  { id: 'LOCO-7701', name: 'CN 7701', type: 'locomotive', status: 'warning', subdivision: 'Ruel', milepost: '79.9', lastSeen: '3 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'CDU': 'Blank' } },
-  { id: 'LOCO-9201', name: 'CN 9201', type: 'locomotive', status: 'warning', subdivision: 'Wainwright', milepost: '122.4', lastSeen: '2 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'BPP': 'Fault' } },
-  { id: 'LOCO-5812', name: 'CN 5812', type: 'locomotive', status: 'critical', subdivision: 'Edson', milepost: '80.2', lastSeen: '8 min ago', system: 'OWL', details: { 'PTC State': 'NSR', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' } },
-  { id: 'LOCO-2743', name: 'CN 2743', type: 'locomotive', status: 'operational', subdivision: 'Bala', milepost: '18.7', lastSeen: '1 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' } },
-  { id: 'LOCO-8801', name: 'CN 8801', type: 'locomotive', status: 'operational', subdivision: 'MacTier', milepost: '44.2', lastSeen: '20 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' } },
-  { id: 'WIU-CAP-201', name: 'WIU Capreol MP 201', type: 'wayside', status: 'critical', subdivision: 'Capreol', milepost: '201.0', lastSeen: '28 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '28 min ago', 'Power': 'Unknown', 'Comms': 'Offline' } },
-  { id: 'WIU-BAL-44', name: 'WIU Bala MP 44.5', type: 'wayside', status: 'warning', subdivision: 'Bala', milepost: '44.5', lastSeen: '2 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '2 min ago', 'Power': 'OK', 'Comms': 'KES re-key in progress' } },
-  { id: 'WIU-KIN-188', name: 'WIU Kingston MP 188.4', type: 'wayside', status: 'operational', subdivision: 'Kingston', milepost: '188.4', lastSeen: '1 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '1 min ago', 'Power': 'OK', 'Comms': 'Nominal' } },
+  { id: 'LOCO-3864', name: 'CN 3864', type: 'locomotive', status: 'critical', subdivision: 'Ruel', milepost: '142.3', lastSeen: '2 min ago', system: 'OWL', details: { 'PTC State': 'Enforcement', 'LIG': 'Disconnected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T05:44:00Z', blOpkExpiresAt: '2026-05-20T05:44:00Z', pollingStatus: 'OK', lastPollAt: '2 min ago' },
+  { id: 'LOCO-5501', name: 'CN 5501', type: 'locomotive', status: 'operational', subdivision: 'Bala', milepost: '88.7', lastSeen: '30 sec ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T06:10:00Z', blOpkExpiresAt: '2026-05-20T06:10:00Z', pollingStatus: 'OK', lastPollAt: '30 sec ago' },
+  { id: 'LOCO-2271', name: 'CN 2271', type: 'locomotive', status: 'warning', subdivision: 'MacTier', lastSeen: '1 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Failed Init' }, etcState: 'ACTIVE', blOpkStatus: 'EXPIRING', blOpkIssuedAt: '2026-05-18T07:30:00Z', blOpkExpiresAt: '2026-05-19T07:30:00Z', pollingStatus: 'OK', lastPollAt: '1 min ago' },
+  { id: 'LOCO-8012', name: 'CN 8012', type: 'locomotive', status: 'operational', subdivision: 'Kingston', lastSeen: '45 sec ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T04:55:00Z', blOpkExpiresAt: '2026-05-20T04:55:00Z', pollingStatus: 'OK', lastPollAt: '45 sec ago' },
+  { id: 'LOCO-4412', name: 'CN 4412', type: 'locomotive', status: 'critical', subdivision: 'Kingston', milepost: '188.4', lastSeen: '5 min ago', system: 'OWL', details: { 'PTC State': 'NSR', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' }, etcState: 'FAILED', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T05:20:00Z', blOpkExpiresAt: '2026-05-20T05:20:00Z', pollingStatus: 'MISMATCH', lastPollAt: '5 min ago' },
+  { id: 'LOCO-7701', name: 'CN 7701', type: 'locomotive', status: 'warning', subdivision: 'Ruel', milepost: '79.9', lastSeen: '3 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'CDU': 'Blank' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T03:15:00Z', blOpkExpiresAt: '2026-05-20T03:15:00Z', pollingStatus: 'OVERDUE', lastPollAt: '18 min ago' },
+  { id: 'LOCO-9201', name: 'CN 9201', type: 'locomotive', status: 'warning', subdivision: 'Wainwright', milepost: '122.4', lastSeen: '2 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'BPP': 'Fault' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T08:00:00Z', blOpkExpiresAt: '2026-05-20T08:00:00Z', pollingStatus: 'OK', lastPollAt: '2 min ago' },
+  { id: 'LOCO-5812', name: 'CN 5812', type: 'locomotive', status: 'critical', subdivision: 'Edson', milepost: '80.2', lastSeen: '8 min ago', system: 'OWL', details: { 'PTC State': 'NSR', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Inactive' }, etcState: 'FAILED', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T02:40:00Z', blOpkExpiresAt: '2026-05-20T02:40:00Z', pollingStatus: 'MISMATCH', lastPollAt: '8 min ago' },
+  { id: 'LOCO-2743', name: 'CN 2743', type: 'locomotive', status: 'operational', subdivision: 'Bala', milepost: '18.7', lastSeen: '1 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T07:05:00Z', blOpkExpiresAt: '2026-05-20T07:05:00Z', pollingStatus: 'OK', lastPollAt: '1 min ago' },
+  { id: 'LOCO-8801', name: 'CN 8801', type: 'locomotive', status: 'operational', subdivision: 'MacTier', milepost: '44.2', lastSeen: '20 min ago', system: 'OWL', details: { 'PTC State': 'Active', 'LIG': 'Connected', 'GPS': 'Active', 'TMC': 'Nominal', 'Trip Optimizer': 'Active' }, etcState: 'ACTIVE', blOpkStatus: 'VALID', blOpkIssuedAt: '2026-05-19T01:30:00Z', blOpkExpiresAt: '2026-05-20T01:30:00Z', pollingStatus: 'OK', lastPollAt: '20 min ago' },
+  { id: 'WIU-CAP-201', name: 'WIU Capreol MP 201', type: 'wayside', status: 'critical', subdivision: 'Capreol', milepost: '201.0', lastSeen: '28 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '28 min ago', 'Power': 'Unknown', 'Comms': 'Offline' }, wOpkState: 'UNKNOWN', pollingStatus: 'OVERDUE', lastPollAt: '28 min ago' },
+  { id: 'WIU-BAL-44', name: 'WIU Bala MP 44.5', type: 'wayside', status: 'warning', subdivision: 'Bala', milepost: '44.5', lastSeen: '2 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '2 min ago', 'Power': 'OK', 'Comms': 'KES re-key in progress' }, wOpkState: 'PRE_ACTIVATION', pollingStatus: 'OK', lastPollAt: '2 min ago' },
+  { id: 'WIU-KIN-188', name: 'WIU Kingston MP 188.4', type: 'wayside', status: 'operational', subdivision: 'Kingston', milepost: '188.4', lastSeen: '1 min ago', system: 'WASP', details: { 'Device Type': 'WIU', 'Last Heartbeat': '1 min ago', 'Power': 'OK', 'Comms': 'Nominal' }, wOpkState: 'ACTIVE', pollingStatus: 'OK', lastPollAt: '1 min ago' },
   { id: 'RADIO-HORN', name: 'Hornepayne Radio Site', type: 'radio', status: 'warning', subdivision: 'Ruel', milepost: '310.0', lastSeen: '4 min ago', system: 'COBRA', details: { 'RSSI': '-81 dBm (degraded)', 'Uptime': '97.8%', 'Active Locos': '4', 'Backhaul': 'Nominal' } },
   { id: 'RADIO-JASP', name: 'Jasper Radio Site', type: 'radio', status: 'critical', subdivision: 'Edson', milepost: '158.0', lastSeen: '12 min ago', system: 'COBRA', details: { 'RSSI': 'N/A', 'Uptime': '0% (offline)', 'Active Locos': '0', 'Backhaul': 'Down' } },
   { id: 'RADIO-NAPA', name: 'Napanee Radio Site', type: 'radio', status: 'operational', subdivision: 'Kingston', milepost: '144.8', lastSeen: '30 sec ago', system: 'COBRA', details: { 'RSSI': '-68 dBm', 'Uptime': '99.9%', 'Active Locos': '2', 'Backhaul': 'Nominal' } },
