@@ -834,6 +834,7 @@ export default function Incidents() {
                 <tr className="border-b border-border bg-muted/30">
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium w-6"/>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Incident</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Affected Asset</th>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">System</th>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Category</th>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Location</th>
@@ -855,11 +856,39 @@ export default function Incidents() {
                         <div className="font-medium text-foreground">{inc.title}</div>
                         <div className="font-mono text-[10px] text-muted-foreground mt-0.5">{inc.id}</div>
                       </td>
+                      {/* Affected Asset column */}
+                      <td className="px-4 py-3">
+                        {inc.loco ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-900/40 border border-cyan-700/40 text-cyan-300 text-[10px] font-mono font-bold w-fit">
+                              🚂 {inc.loco}
+                            </span>
+                            {/* ETC (Canada) vs PTC (USA) label */}
+                            {inc.subdivision && (
+                              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded w-fit ${
+                                ['Bala','Ruel','Kingston','Capreol','MacTier','Oakville'].some(s => inc.subdivision?.includes(s))
+                                  ? 'bg-cyan-900/30 text-cyan-400 border border-cyan-800/40'
+                                  : 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
+                              }`}>
+                                {['Bala','Ruel','Kingston','Capreol','MacTier','Oakville'].some(s => inc.subdivision?.includes(s))
+                                  ? '🇨🇦 ETC — Canada'
+                                  : '🇺🇸 PTC — USA'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-700/40 border border-slate-600/40 text-slate-300 text-[10px] font-mono w-fit">
+                              🖧 {inc.system}
+                            </span>
+                            <span className="text-[9px] text-muted-foreground">Infrastructure</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3"><span className="px-1.5 py-0.5 rounded bg-border text-muted-foreground text-[10px]">{inc.system}</span></td>
                       <td className="px-4 py-3 text-muted-foreground text-[11px]">{inc.tag}</td>
                       <td className="px-4 py-3 text-muted-foreground text-[11px]">
                         {inc.subdivision || '—'}{inc.milepost ? ` · MP ${inc.milepost}` : ''}
-                        {inc.loco && <div className="text-[10px] font-mono">{inc.loco}</div>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">

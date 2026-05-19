@@ -835,34 +835,119 @@ export default function TrainJourney() {
                 )}
 
                 {/* ── Back-Office Log ── */}
-                {activeTab === "backoffice" && (
-                  <div>
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-3">
-                      Chronological system interaction log · KES → CI BOS → G BOS → PDS → ITCM → BOS → CARMA
-                    </div>
-                    <div className="space-y-2">
-                      {train.backOfficeEvents.map((ev, i) => (
-                        <div key={i} className={`flex gap-3 items-start rounded border p-3 ${healthBg[ev.status]}`}>
-                          <div className="flex-shrink-0 mt-0.5">
-                            <HealthIcon h={ev.status} size={13} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[10px] font-mono font-bold text-slate-300 bg-slate-700/60 px-1.5 py-0.5 rounded">{ev.system}</span>
-                              <span className="text-[10px] text-slate-500 font-mono">{ev.time}</span>
-                              {ev.latencyMs && (
-                                <span className={`text-[10px] font-mono ${ev.latencyMs > 10000 ? "text-red-400" : ev.latencyMs > 3000 ? "text-amber-400" : "text-slate-500"}`}>
-                                  {ev.latencyMs >= 1000 ? `${(ev.latencyMs / 1000).toFixed(1)}s` : `${ev.latencyMs}ms`}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-slate-300 mt-1">{ev.event}</div>
-                          </div>
+                {activeTab === "backoffice" && (() => {
+                  // Direction filter state (inline via closure trick)
+                  const dirColors: Record<string, string> = {
+                    'loco-to-system': 'text-cyan-400',
+                    'system-to-loco': 'text-emerald-400',
+                    'system-to-system': 'text-amber-400',
+                  };
+                  const dirLabel: Record<string, string> = {
+                    'loco-to-system': '↑ Loco → System',
+                    'system-to-loco': '↓ System → Loco',
+                    'system-to-system': '⇄ System → System',
+                  };
+                  const dirArrow: Record<string, string> = {
+                    'loco-to-system': '↑',
+                    'system-to-loco': '↓',
+                    'system-to-system': '⇄',
+                  };
+                  const empColors: Record<string, string> = {
+                    '101': 'bg-purple-900/60 text-purple-300 border-purple-700/40',
+                    '102': 'bg-purple-900/60 text-purple-300 border-purple-700/40',
+                    '103': 'bg-purple-900/60 text-purple-300 border-purple-700/40',
+                    '02000': 'bg-blue-900/60 text-blue-300 border-blue-700/40',
+                    '02010': 'bg-blue-900/60 text-blue-300 border-blue-700/40',
+                    '02030': 'bg-indigo-900/60 text-indigo-300 border-indigo-700/40',
+                    '02040': 'bg-indigo-900/60 text-indigo-300 border-indigo-700/40',
+                    '02050': 'bg-emerald-900/60 text-emerald-300 border-emerald-700/40',
+                    '02060': 'bg-emerald-900/60 text-emerald-300 border-emerald-700/40',
+                    '02070': 'bg-teal-900/60 text-teal-300 border-teal-700/40',
+                    '02080': 'bg-teal-900/60 text-teal-300 border-teal-700/40',
+                    '02100': 'bg-slate-700/60 text-slate-300 border-slate-600/40',
+                    '02110': 'bg-slate-700/60 text-slate-300 border-slate-600/40',
+                    '06200': 'bg-amber-900/60 text-amber-300 border-amber-700/40',
+                    '06250': 'bg-amber-900/60 text-amber-300 border-amber-700/40',
+                    'ITSM':  'bg-rose-900/60 text-rose-300 border-rose-700/40',
+                    'CDU':   'bg-slate-700/60 text-slate-300 border-slate-600/40',
+                  };
+                  // Count by direction
+                  const locoOut = train.backOfficeEvents.filter(e => e.direction === 'loco-to-system').length;
+                  const sysIn   = train.backOfficeEvents.filter(e => e.direction === 'system-to-loco').length;
+                  const sysToSys = train.backOfficeEvents.filter(e => e.direction === 'system-to-system').length;
+                  return (
+                    <div>
+                      {/* Legend + stats */}
+                      <div className="flex items-center gap-4 mb-3 flex-wrap">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest">EMP Message Log · {train.backOfficeEvents.length} messages</div>
+                        <div className="flex gap-3 ml-auto">
+                          <span className="flex items-center gap-1 text-[10px] text-cyan-400"><span className="font-bold">↑</span> Loco→System <span className="font-mono bg-slate-700/60 px-1 rounded">{locoOut}</span></span>
+                          <span className="flex items-center gap-1 text-[10px] text-emerald-400"><span className="font-bold">↓</span> System→Loco <span className="font-mono bg-slate-700/60 px-1 rounded">{sysIn}</span></span>
+                          <span className="flex items-center gap-1 text-[10px] text-amber-400"><span className="font-bold">⇄</span> Sys→Sys <span className="font-mono bg-slate-700/60 px-1 rounded">{sysToSys}</span></span>
                         </div>
-                      ))}
+                      </div>
+                      {/* ETC/PTC region note */}
+                      <div className="mb-3 px-3 py-2 rounded border border-slate-700/50 bg-slate-800/40 text-[10px] text-slate-400">
+                        <span className="font-bold text-cyan-400">ETC</span> (Electronic Train Control) is used on <span className="font-bold">CN Canada</span> subdivisions.  
+                        <span className="font-bold text-amber-400">PTC</span> (Positive Train Control) is used on <span className="font-bold">US (CSXT / interop)</span> subdivisions.  
+                        Both use the same EMP message protocol.
+                      </div>
+                      {/* Message table */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="border-b border-slate-700/50">
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-16">Time</th>
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-8">Dir</th>
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-24">EMP #</th>
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-28">From</th>
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-28">To</th>
+                              <th className="text-left py-1.5 px-2 text-[10px] text-muted-foreground font-medium">Message / Event</th>
+                              <th className="text-right py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-14">Latency</th>
+                              <th className="text-center py-1.5 px-2 text-[10px] text-muted-foreground font-medium w-8">St</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {train.backOfficeEvents.map((ev, i) => {
+                              const dir = ev.direction ?? 'system-to-system';
+                              const empNum = ev.empMessageNumber;
+                              const empClass = empNum ? (empColors[empNum] ?? 'bg-slate-700/60 text-slate-300 border-slate-600/40') : '';
+                              return (
+                                <tr key={i} className={`border-b border-slate-800/60 hover:bg-slate-800/40 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-900/20'}`}>
+                                  <td className="py-1.5 px-2 font-mono text-slate-400 whitespace-nowrap">{ev.time}</td>
+                                  <td className="py-1.5 px-2">
+                                    <span className={`font-bold text-sm ${dirColors[dir]}`} title={dirLabel[dir]}>{dirArrow[dir]}</span>
+                                  </td>
+                                  <td className="py-1.5 px-2">
+                                    {empNum ? (
+                                      <span className={`inline-flex flex-col gap-0.5`}>
+                                        <span className={`font-mono text-[10px] px-1.5 py-0.5 rounded border ${empClass}`}>{empNum}</span>
+                                        {ev.empMessageLabel && <span className="text-[9px] text-slate-500 leading-tight">{ev.empMessageLabel}</span>}
+                                      </span>
+                                    ) : <span className="text-slate-600">—</span>}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-slate-400 text-[10px] font-mono truncate max-w-[7rem]" title={ev.from}>{ev.from ?? ev.system}</td>
+                                  <td className="py-1.5 px-2 text-slate-400 text-[10px] font-mono truncate max-w-[7rem]" title={ev.to}>{ev.to ?? '—'}</td>
+                                  <td className="py-1.5 px-2 text-slate-300">{ev.event}</td>
+                                  <td className="py-1.5 px-2 text-right font-mono whitespace-nowrap">
+                                    {ev.latencyMs != null && ev.latencyMs > 0 ? (
+                                      <span className={ev.latencyMs > 10000 ? 'text-red-400' : ev.latencyMs > 3000 ? 'text-amber-400' : 'text-slate-500'}>
+                                        {ev.latencyMs >= 1000 ? `${(ev.latencyMs / 1000).toFixed(1)}s` : `${ev.latencyMs}ms`}
+                                      </span>
+                                    ) : <span className="text-slate-700">—</span>}
+                                  </td>
+                                  <td className="py-1.5 px-2 text-center">
+                                    <HealthIcon h={ev.status} size={11} />
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {/* ── KES / BOS / PTC Lifecycle ── */}
                 {activeTab === "ptc" && (() => {

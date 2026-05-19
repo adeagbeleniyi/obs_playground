@@ -577,7 +577,7 @@ export const incidents: Incident[] = [
 
 // ─── Synthetic Traces ──────────────────────────────────────────────────────────
 export const syntheticTraces: SyntheticTrace[] = [
-  { id: 'TRC-001', locoId: 'CN 3864', seqNum: '02090', empMessageType: '02090_POSITION_REPORT', etcPhase: 'POLLING', subdivision: 'Ruel',
+  { id: '02090-CN3864-20250514-001', locoId: 'CN 3864', seqNum: '02090', empMessageType: '02090_POSITION_REPORT', etcPhase: 'POLLING', subdivision: 'Ruel',
     startTime: '14:32:08', status: 'failed', latencyMs: 0,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02090 Position Report transmitted — LIG socket fault detected post-send', site: 'On-board' },
@@ -586,7 +586,7 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 0, hopDurationMs: 0, status: 'failed', detail: 'EMP 02090 not received — LIG socket closed, NSR flag raised in BOS', site: 'Toronto NOC' },
     ],
   },
-  { id: 'TRC-002', locoId: 'CN 5501', seqNum: '02060', empMessageType: '02060_AUTH_RESPONSE', etcPhase: 'AUTHORITY', subdivision: 'Bala',
+  { id: '02060-CN5501-20250514-002', locoId: 'CN 5501', seqNum: '02060', empMessageType: '02060_AUTH_RESPONSE', etcPhase: 'AUTHORITY', subdivision: 'Bala',
     startTime: '14:28:41', status: 'complete', latencyMs: 890,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02050 Authority Request sent — requesting MP 88.7 → MP 130.0', site: 'On-board' },
@@ -595,7 +595,7 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 890, hopDurationMs: 440, status: 'ok', detail: 'EMP 02060 Authority Response — MA issued MP 88.7 → MP 130.0, 60 mph, expires 15:28', site: 'Toronto NOC' },
     ],
   },
-  { id: 'TRC-003', locoId: 'CN 2271', seqNum: '02030', empMessageType: '02030_CONSIST', etcPhase: 'CONSIST', subdivision: 'MacTier',
+  { id: '02030-CN2271-20250514-003', locoId: 'CN 2271', seqNum: '02030', empMessageType: '02030_CONSIST', etcPhase: 'CONSIST', subdivision: 'MacTier',
     startTime: '14:19:00', status: 'degraded', latencyMs: 4200,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02030 Consist Registration sent — 82 cars, 17,400 tons, 5,180 ft', site: 'On-board' },
@@ -604,7 +604,7 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 4200, hopDurationMs: 3680, status: 'slow', detail: 'EMP 02040 Consist Response after 4.2s — Trip Optimizer initialization timeout', site: 'Toronto NOC' },
     ],
   },
-  { id: 'TRC-004', locoId: 'CN 4412', seqNum: '02100', empMessageType: '02100_POLLING', etcPhase: 'POLLING', subdivision: 'Kingston',
+  { id: '02100-CN4412-20250514-004', locoId: 'CN 4412', seqNum: '02100', empMessageType: '02100_POLLING', etcPhase: 'POLLING', subdivision: 'Kingston',
     startTime: '12:55:18', status: 'failed', latencyMs: 0,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02100 Polling request sent — expected 02110 response within 30s', site: 'On-board' },
@@ -614,7 +614,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-005', locoId: 'CN 7701', seqNum: 'PTC-SEQ-33901', subdivision: 'Ruel',
+    id: '02050-CN7701-20250514-005', locoId: 'CN 7701', seqNum: 'PTC-SEQ-33901', subdivision: 'Ruel',
     startTime: '12:44:05', status: 'degraded', latencyMs: 6800,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #33901', site: 'On-board' },
@@ -624,7 +624,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-006', locoId: 'CN 9201', seqNum: 'PTC-SEQ-44120', subdivision: 'Wainwright',
+    id: '02060-CN9201-20250514-006', locoId: 'CN 9201', seqNum: 'PTC-SEQ-44120', subdivision: 'Wainwright',
     startTime: '12:18:28', status: 'complete', latencyMs: 720,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #44120', site: 'On-board' },
@@ -633,7 +633,7 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 720, hopDurationMs: 330, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Edmonton NOC' },
     ],
   },
-  { id: 'TRC-007', locoId: 'CN 5812', seqNum: '101', empMessageType: '101_BL_OPK_REQUEST', etcPhase: 'SW_VALIDATION', subdivision: 'Edson',
+  { id: '101-CN5812-20250514-007', locoId: 'CN 5812', seqNum: '101', empMessageType: '101_BL_OPK_REQUEST', etcPhase: 'SW_VALIDATION', subdivision: 'Edson',
     startTime: '11:22:14', status: 'failed', latencyMs: 0,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 101 BL-OPK Key Exchange Request sent to KES — daily key renewal', site: 'On-board' },
@@ -643,7 +643,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-008', locoId: 'CN 2743', seqNum: 'PTC-SEQ-22811', subdivision: 'Bala',
+    id: '02000-CN2743-20250514-008', locoId: 'CN 2743', seqNum: 'PTC-SEQ-22811', subdivision: 'Bala',
     startTime: '10:31:08', status: 'complete', latencyMs: 1050,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #22811', site: 'On-board' },
@@ -653,7 +653,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-009', locoId: 'CN 6612', seqNum: 'PTC-SEQ-10092', subdivision: 'Capreol',
+    id: '02050-CN6612-20250514-009', locoId: 'CN 6612', seqNum: 'PTC-SEQ-10092', subdivision: 'Capreol',
     startTime: '10:05:33', status: 'complete', latencyMs: 980,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #10092', site: 'On-board' },
@@ -663,7 +663,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-010', locoId: 'CN 8801', seqNum: 'PTC-SEQ-29944', subdivision: 'MacTier',
+    id: '02030-CN8801-20250514-010', locoId: 'CN 8801', seqNum: 'PTC-SEQ-29944', subdivision: 'MacTier',
     startTime: '09:48:12', status: 'degraded', latencyMs: 3100,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #29944', site: 'On-board' },
@@ -673,7 +673,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-011', locoId: 'CN 3301', seqNum: 'PTC-SEQ-48821', subdivision: 'Rivers',
+    id: '02060-CN3301-20250514-011', locoId: 'CN 3301', seqNum: 'PTC-SEQ-48821', subdivision: 'Rivers',
     startTime: '09:22:55', status: 'complete', latencyMs: 810,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #48821', site: 'On-board' },
@@ -682,7 +682,7 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 810, hopDurationMs: 400, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Winnipeg NOC' },
     ],
   },
-  { id: 'TRC-012', locoId: 'CN 4190', seqNum: '02000', empMessageType: '02000_CREW_AUTH', etcPhase: 'CREW_AUTH', subdivision: 'Kingston',
+  { id: '02000-CN4190-20250514-012', locoId: 'CN 4190', seqNum: '02000', empMessageType: '02000_CREW_AUTH', etcPhase: 'CREW_AUTH', subdivision: 'Kingston',
     startTime: '09:11:44', status: 'failed', latencyMs: 0,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'EMP 02000 Crew Authentication request prepared — Crew ID CRW-4190', site: 'On-board' },
@@ -692,7 +692,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-013', locoId: 'CN 7120', seqNum: 'PTC-SEQ-81002', subdivision: 'Edson',
+    id: '02090-CN7120-20250514-013', locoId: 'CN 7120', seqNum: 'PTC-SEQ-81002', subdivision: 'Edson',
     startTime: '08:55:30', status: 'complete', latencyMs: 660,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #81002', site: 'On-board' },
@@ -702,7 +702,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-014', locoId: 'CN 5240', seqNum: 'PTC-SEQ-60011', subdivision: 'Wainwright',
+    id: '02100-CN5240-20250514-014', locoId: 'CN 5240', seqNum: 'PTC-SEQ-60011', subdivision: 'Wainwright',
     startTime: '08:30:18', status: 'degraded', latencyMs: 5500,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #60011', site: 'On-board' },
@@ -712,7 +712,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-015', locoId: 'CN 2090', seqNum: 'PTC-SEQ-19283', subdivision: 'Capreol',
+    id: '02060-CN2090-20250514-015', locoId: 'CN 2090', seqNum: 'PTC-SEQ-19283', subdivision: 'Capreol',
     startTime: '08:12:44', status: 'complete', latencyMs: 750,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #19283', site: 'On-board' },
@@ -722,7 +722,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-016', locoId: 'CN 6633', seqNum: 'PTC-SEQ-92100', subdivision: 'Bala',
+    id: '02030-CN6633-20250514-016', locoId: 'CN 6633', seqNum: 'PTC-SEQ-92100', subdivision: 'Bala',
     startTime: '07:58:02', status: 'failed', latencyMs: 0,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #92100', site: 'On-board' },
@@ -732,7 +732,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-017', locoId: 'CN 1122', seqNum: 'PTC-SEQ-55001', subdivision: 'Rivers',
+    id: '101-CN1122-20250514-017', locoId: 'CN 1122', seqNum: 'PTC-SEQ-55001', subdivision: 'Rivers',
     startTime: '07:41:19', status: 'complete', latencyMs: 920,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #55001', site: 'On-board' },
@@ -742,7 +742,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-018', locoId: 'CN 9900', seqNum: 'PTC-SEQ-38811', subdivision: 'MacTier',
+    id: '02050-CN9900-20250514-018', locoId: 'CN 9900', seqNum: 'PTC-SEQ-38811', subdivision: 'MacTier',
     startTime: '07:22:05', status: 'complete', latencyMs: 830,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #38811', site: 'On-board' },
@@ -752,7 +752,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-019', locoId: 'CN 4455', seqNum: 'PTC-SEQ-11900', subdivision: 'Ruel',
+    id: '02000-CN4455-20250514-019', locoId: 'CN 4455', seqNum: 'PTC-SEQ-11900', subdivision: 'Ruel',
     startTime: '07:05:44', status: 'degraded', latencyMs: 2800,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #11900', site: 'On-board' },
@@ -762,7 +762,7 @@ export const syntheticTraces: SyntheticTrace[] = [
     ],
   },
   {
-    id: 'TRC-020', locoId: 'CN 3388', seqNum: 'PTC-SEQ-77700', subdivision: 'Kingston',
+    id: '02090-CN3388-20250514-020', locoId: 'CN 3388', seqNum: 'PTC-SEQ-77700', subdivision: 'Kingston',
     startTime: '06:50:11', status: 'complete', latencyMs: 680,
     hops: [
       { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Sent PTC msg #77700', site: 'On-board' },

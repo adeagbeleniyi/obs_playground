@@ -383,7 +383,7 @@ export default function Traces() {
               Synthetic PTC Traces
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              End-to-end PTC message delivery tracing — Locomotive → 220MHz → COBRA → BOS
+              End-to-end EMP message delivery tracing — Locomotive → 220MHz → COBRA → BOS
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -391,6 +391,22 @@ export default function Traces() {
               <RefreshCw size={10} />Last updated: just now
             </span>
           </div>
+        </div>
+
+        {/* ETC vs PTC Terminology Legend */}
+        <div className="flex flex-wrap gap-3 px-4 py-2.5 rounded border border-slate-700/50 bg-slate-800/40 text-[11px]">
+          <span className="font-semibold text-slate-400 self-center">Terminology:</span>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-900/30 border border-cyan-700/40 text-cyan-300">
+            <span className="text-base">🇨🇦</span>
+            <span><span className="font-bold">ETC</span> (Electronic Train Control) — used on <span className="font-semibold">CN Canada</span> subdivisions</span>
+          </span>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-900/30 border border-amber-700/40 text-amber-300">
+            <span className="text-base">🇺🇸</span>
+            <span><span className="font-bold">PTC</span> (Positive Train Control) — used on <span className="font-semibold">US (CSXT / interop)</span> subdivisions</span>
+          </span>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-700/30 border border-slate-600/40 text-slate-400">
+            Both use the same <span className="font-mono font-bold text-slate-300">EMP</span> message protocol
+          </span>
         </div>
 
         {/* How it works banner */}
