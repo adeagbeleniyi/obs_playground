@@ -525,6 +525,9 @@ export default function Traces() {
                 <th className="text-left px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
                   ETC Phase
                 </th>
+                <th className="text-left px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                  Region
+                </th>
                 <th className="text-right px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium cursor-pointer select-none hover:text-foreground"
                   onClick={() => toggleSort('startTime')}>
                   <div className="flex items-center gap-1 justify-end">Time <SortIcon field="startTime" sortField={sortField} sortDir={sortDir} /></div>
@@ -602,6 +605,22 @@ export default function Traces() {
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
+                      {/* Region: ETC (Canada) vs PTC (USA) */}
+                      <td className="px-3 py-3">
+                        {(() => {
+                          const canadaSubs = ['Bala','Ruel','Kingston','Capreol','MacTier','Oakville','Edson','Rivers','Wainwright'];
+                          const isCanada = canadaSubs.some(s => trace.subdivision.includes(s));
+                          return (
+                            <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
+                              isCanada
+                                ? 'bg-cyan-900/30 text-cyan-300 border-cyan-700/40'
+                                : 'bg-amber-900/30 text-amber-300 border-amber-700/40'
+                            }`} title={isCanada ? 'Electronic Train Control — CN Canada subdivisions' : 'Positive Train Control — US/CSXT interop subdivisions'}>
+                              {isCanada ? '🇨🇦 ETC' : '🇺🇸 PTC'}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       {/* Time */}
                       <td className="px-3 py-3 text-right">
                         <div className="flex items-center gap-1 justify-end text-muted-foreground">
@@ -616,7 +635,7 @@ export default function Traces() {
                     </tr>
                     {isExpanded && (
                       <tr className="border-b border-border/50">
-                        <td colSpan={11} className="p-0">
+                        <td colSpan={12} className="p-0">
                           <TraceDetailPanel trace={trace} />
                         </td>
                       </tr>
