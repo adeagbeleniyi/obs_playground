@@ -87,6 +87,7 @@ export interface SyntheticTrace {
   hops: TraceHop[];
   status: 'complete' | 'degraded' | 'failed';
   latencyMs: number;
+  aiDiagnosis?: string;  // Optional AI-generated diagnosis for failed/degraded traces
 }
 
 export interface TraceHop {
@@ -798,6 +799,43 @@ export const syntheticTraces: SyntheticTrace[] = [
       { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 130, hopDurationMs: 130, status: 'ok', detail: 'Strong signal', signalDbm: -66, site: 'Kingston tower' },
       { name: 'COBRA Site', system: 'COBRA', timestampOffset: 360, hopDurationMs: 230, status: 'ok', detail: 'Routed via Kingston site', site: 'Kingston' },
       { name: 'BOS Receiver', system: 'BOS', timestampOffset: 680, hopDurationMs: 320, status: 'ok', detail: 'Acknowledged — authority granted', site: 'Toronto NOC' },
+    ],
+  },
+  // ─── PTC Traces (US/CSXT Interop Subdivisions) ────────────────────────────────────────────────────────────────────
+  {
+    id: '02050-CSXT7210-20250514-021', locoId: 'CSXT 7210', seqNum: 'PTC-SEQ-88100', subdivision: 'CSXT Barr (Chicago)',
+    startTime: '07:15:44', status: 'complete', latencyMs: 720, safetySystem: 'PTC',
+    empMessageType: '02050_AUTH_REQUEST',
+    etcPhase: 'AUTHORITY',
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'PTC authority request initiated', site: 'On-board', signalDbm: -71 },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 140, hopDurationMs: 140, status: 'ok', detail: 'PTC radio link active', signalDbm: -74, site: 'Chicago Barr tower' },
+      { name: 'CSXT BOS', system: 'BOS', timestampOffset: 420, hopDurationMs: 280, status: 'ok', detail: 'CSXT Back-Office Server received', site: 'Jacksonville NOC' },
+      { name: 'BOS Response', system: 'BOS', timestampOffset: 720, hopDurationMs: 300, status: 'ok', detail: 'Authority granted to MP 44.2', site: 'Jacksonville NOC' },
+    ],
+  },
+  {
+    id: '02060-CSXT8841-20250514-022', locoId: 'CSXT 8841', seqNum: 'PTC-SEQ-88200', subdivision: 'CSXT Toledo (Ohio)',
+    startTime: '08:02:19', status: 'degraded', latencyMs: 3100, safetySystem: 'PTC',
+    empMessageType: '02060_AUTH_RESPONSE',
+    etcPhase: 'AUTHORITY',
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'PTC authority request sent', site: 'On-board', signalDbm: -78 },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 200, hopDurationMs: 200, status: 'slow', detail: 'Marginal signal — cell fallback active', signalDbm: -88, site: 'Toledo tower' },
+      { name: 'CSXT BOS', system: 'BOS', timestampOffset: 1800, hopDurationMs: 1600, status: 'slow', detail: 'BOS processing delay — high load', site: 'Jacksonville NOC' },
+      { name: 'BOS Response', system: 'BOS', timestampOffset: 3100, hopDurationMs: 1300, status: 'ok', detail: 'Authority granted with delay', site: 'Jacksonville NOC' },
+    ],
+  },
+  {
+    id: '02000-CSXT5530-20250514-023', locoId: 'CSXT 5530', seqNum: 'PTC-SEQ-88300', subdivision: 'CSXT Willard (Ohio)',
+    startTime: '09:44:02', status: 'failed', latencyMs: 5200, safetySystem: 'PTC',
+    empMessageType: '02000_CREW_AUTH',
+    etcPhase: 'CREW_AUTH',
+    aiDiagnosis: 'PTC crew authentication failed at CSXT Willard subdivision. I-ETMS onboard unit transmitted EMP-02000 Crew Auth message but received no acknowledgment from CSXT BOS within the 5-second timeout window. Likely cause: BOS authentication service degraded or 220MHz radio coverage gap near MP 88. Recommend: verify CSXT BOS auth service status and check radio coverage at Willard MP 85-92.',
+    hops: [
+      { name: 'I-ETMS (Loco)', system: 'OWL Agent', timestampOffset: 0, hopDurationMs: 0, status: 'ok', detail: 'Crew auth request sent', site: 'On-board', signalDbm: -82 },
+      { name: '220MHz Radio', system: 'ITCnet', timestampOffset: 300, hopDurationMs: 300, status: 'slow', detail: 'Weak signal near MP 88', signalDbm: -91, site: 'Willard tower' },
+      { name: 'CSXT BOS', system: 'BOS', timestampOffset: 5200, hopDurationMs: 4900, status: 'failed', detail: 'Auth service timeout — no response', site: 'Jacksonville NOC' },
     ],
   },
 ];

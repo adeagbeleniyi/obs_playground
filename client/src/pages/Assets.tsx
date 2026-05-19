@@ -233,6 +233,42 @@ function LocoConsistCard({ loco }: { loco: LocomotiveDetail }) {
   );
 }
 
+// ─── Safety System helpers ───────────────────────────────────────────────────
+function getSafetySystem(subdivision: string): 'ETC-ATP' | 'ETC-DAS' | 'PTC' {
+  const s = subdivision.toLowerCase();
+  if (s.startsWith('csxt') || s.includes('chicago') || s.includes('toledo') || s.includes('willard')) return 'PTC';
+  if (s.includes('edson') || s.includes('wainwright') || s.includes('rivers')) return 'ETC-DAS';
+  return 'ETC-ATP'; // Ruel, Bala, MacTier, Capreol, Kingston, and all other CN Canada subdivisions
+}
+
+function SafetySystemBadge({ subdivision }: { subdivision: string }) {
+  const sys = getSafetySystem(subdivision);
+  if (sys === 'ETC-ATP') return (
+    <span
+      className="text-[9px] px-1.5 py-0.5 rounded border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 font-medium"
+      title="ETC-ATP: Enhanced Train Control with WIUs — automatic brake enforcement (Canada)"
+    >
+      🇨🇦 ETC-ATP
+    </span>
+  );
+  if (sys === 'ETC-DAS') return (
+    <span
+      className="text-[9px] px-1.5 py-0.5 rounded border border-teal-500/40 bg-teal-500/10 text-teal-400 font-medium"
+      title="ETC-DAS: Enhanced Train Control advisory only — no WIUs, no brake enforcement (Canada)"
+    >
+      🇨🇦 ETC-DAS
+    </span>
+  );
+  return (
+    <span
+      className="text-[9px] px-1.5 py-0.5 rounded border border-amber-500/40 bg-amber-500/10 text-amber-400 font-medium"
+      title="PTC: Positive Train Control — US federal mandate, CSXT interop, automatic brake enforcement"
+    >
+      🇺🇸 PTC
+    </span>
+  );
+}
+
 // ─── Locomotive Asset Card ─────────────────────────────────────────────────────
 function LocoAssetCard({ asset }: { asset: typeof assets[0] }) {
   const [open, setOpen] = useState(false);
@@ -255,7 +291,8 @@ function LocoAssetCard({ asset }: { asset: typeof assets[0] }) {
             <div className="text-[10px] text-muted-foreground font-mono">{asset.id}</div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {asset.type === 'locomotive' && <SafetySystemBadge subdivision={asset.subdivision} />}
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-border text-muted-foreground font-mono">{asset.system}</span>
           <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${statusColor[asset.status]}`}>{asset.status.toUpperCase()}</span>
         </div>
