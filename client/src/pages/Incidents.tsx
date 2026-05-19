@@ -863,17 +863,27 @@ export default function Incidents() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-900/40 border border-cyan-700/40 text-cyan-300 text-[10px] font-mono font-bold w-fit">
                               🚂 {inc.loco}
                             </span>
-                            {/* ETC (Canada) vs PTC (USA) label */}
-                            {inc.subdivision && (
-                              <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded w-fit ${
-                                ['Bala','Ruel','Kingston','Capreol','MacTier','Oakville'].some(s => inc.subdivision?.includes(s))
-                                  ? 'bg-cyan-900/30 text-cyan-400 border border-cyan-800/40'
-                                  : 'bg-amber-900/30 text-amber-400 border border-amber-800/40'
-                              }`}>
-                                {['Bala','Ruel','Kingston','Capreol','MacTier','Oakville'].some(s => inc.subdivision?.includes(s))
-                                  ? '🇨🇦 ETC — Canada'
-                                  : '🇺🇸 PTC — USA'}
+                            {/* Safety System badge */}
+                            {inc.safetySystem === 'ETC-ATP' && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded w-fit bg-cyan-900/30 text-cyan-400 border border-cyan-800/40"
+                                title="ETC-ATP: Enhanced Train Control — Automatic Train Protection. High-risk CN Canada corridor with WIU wayside interfaces. Automatic brake enforcement active.">
+                                🇨🇦 ETC-ATP
                               </span>
+                            )}
+                            {inc.safetySystem === 'ETC-DAS' && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded w-fit bg-teal-900/30 text-teal-400 border border-teal-800/40"
+                                title="ETC-DAS: Enhanced Train Control — Driver Advisory System. Lower-risk CN Canada corridor, no WIU wayside interfaces. Advisory notifications only, no automatic brake enforcement.">
+                                🇨🇦 ETC-DAS
+                              </span>
+                            )}
+                            {inc.safetySystem === 'PTC' && (
+                              <span className="text-[9px] font-medium px-1.5 py-0.5 rounded w-fit bg-amber-900/30 text-amber-400 border border-amber-800/40"
+                                title="PTC: Positive Train Control. US federal mandate for collision avoidance and brake enforcement on US/CSXT interop subdivisions.">
+                                🇺🇸 PTC
+                              </span>
+                            )}
+                            {!inc.safetySystem && inc.subdivision && (
+                              <span className="text-[9px] text-muted-foreground">{inc.subdivision}</span>
                             )}
                           </div>
                         ) : (

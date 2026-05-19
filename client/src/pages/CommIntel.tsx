@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Layout from "@/components/Layout";
 import {
   TNU_EVENTS, DYN_SUB_TREND, WSRS_STATS, SUBDIVISIONS,
@@ -355,14 +355,189 @@ function WsrsMonitor() {
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── EMP Volume Section ────────────────────────────────────────────────────────────────────
+const generateEMPData = () => {
+  const labels: string[] = [];
+  const emp1005: number[] = [];
+  const emp2005: number[] = [];
+  const emp2080: number[] = [];
+  const base = new Date('2025-05-30T16:00:00Z');
+  for (let i = 0; i < 48; i++) {
+    const t = new Date(base.getTime() + i * 5 * 60 * 1000);
+    labels.push(t.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    const spike = Math.random() < 0.15 ? Math.floor(Math.random() * 6) + 8 : 0;
+    emp1005.push(Math.floor(Math.random() * 7) + 2 + spike);
+    emp2005.push(Math.floor(Math.random() * 6) + 2 + (spike > 0 ? spike - 1 : 0));
+    emp2080.push(Math.floor(Math.random() * 20) + 30 + (Math.random() < 0.1 ? 15 : 0));
+  }
+  return { labels, emp1005, emp2005, emp2080 };
+};
+
+const COMM_EMP_DATA = generateEMPData();
+
+function EMPVolumeSection() {
+  useEffect(() => {
+    let dualChart: any = null;
+    let singleChart: any = null;
+
+    const buildCharts = () => {
+      const Chart = (window as any).Chart;
+      if (!Chart) return;
+
+      const dualCanvas = document.getElementById('commEmpDualChart') as HTMLCanvasElement | null;
+      const singleCanvas = document.getElementById('commEmp2080Chart') as HTMLCanvasElement | null;
+
+      if (dualCanvas) {
+        const existing = Chart.getChart(dualCanvas);
+        if (existing) existing.destroy();
+        dualChart = new Chart(dualCanvas, {
+          type: 'line',
+          data: {
+            labels: COMM_EMP_DATA.labels,
+            datasets: [
+              { label: 'EMP-2005', data: COMM_EMP_DATA.emp2005, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+              { label: 'EMP-1005', data: COMM_EMP_DATA.emp1005, borderColor: '#facc15', backgroundColor: 'rgba(250,204,21,0.08)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: false },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: '#1e293b', titleColor: '#94a3b8', bodyColor: '#e2e8f0', borderColor: '#334155', borderWidth: 1 } },
+            scales: {
+              x: { ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+              y: { min: 0, max: 16, ticks: { color: '#64748b', font: { size: 9 }, stepSize: 4 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            },
+          },
+        });
+      }
+
+      if (singleCanvas) {
+        const existing2 = Chart.getChart(singleCanvas);
+        if (existing2) existing2.destroy();
+        singleChart = new Chart(singleCanvas, {
+          type: 'line',
+          data: {
+            labels: COMM_EMP_DATA.labels,
+            datasets: [
+              { label: 'EMP-2080', data: COMM_EMP_DATA.emp2080, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.08)', borderWidth: 1.5, pointRadius: 0, tension: 0.3, fill: true },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false, backgroundColor: '#1e293b', titleColor: '#94a3b8', bodyColor: '#e2e8f0', borderColor: '#334155', borderWidth: 1 } },
+            scales: {
+              x: { ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+              y: { min: 0, max: 70, ticks: { color: '#64748b', font: { size: 9 }, stepSize: 10 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            },
+          },
+        });
+      }
+    };
+
+    if (!(window as any).Chart) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      script.onload = buildCharts;
+      document.head.appendChild(script);
+    } else {
+      buildCharts();
+    }
+
+    return () => {
+      if (dualChart) dualChart.destroy();
+      if (singleChart) singleChart.destroy();
+    };
+  }, []);
+
+  const EMP_TYPES = [
+    { id: '1005', label: 'EMP-1005', name: 'Config Version List', dir: 'Loco → BOS', desc: 'Locomotive requests current configuration version from Back-Office Server', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+    { id: '2005', label: 'EMP-2005', name: 'Config Version Response', dir: 'BOS → Loco', desc: 'BOS responds with current configuration version and checksum', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+    { id: '2080', label: 'EMP-2080', name: 'Authority Request', dir: 'Loco → BOS', desc: 'Locomotive requests movement authority for next track segment', color: 'text-cyan-400', bg: 'bg-cyan-500/10 border-cyan-500/20' },
+    { id: '2090', label: 'EMP-2090', name: 'Authority Response', dir: 'BOS → Loco', desc: 'BOS grants or denies movement authority with authority limits', color: 'text-purple-400', bg: 'bg-purple-500/10 border-purple-500/20' },
+    { id: '2000', label: 'EMP-02000', name: 'Crew Authentication', dir: 'Loco → BOS', desc: 'Crew credentials submitted to BOS for validation at start of shift', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
+    { id: '2030', label: 'EMP-02030', name: 'Consist Report', dir: 'Loco → BOS', desc: 'Locomotive consist configuration (car count, weight, brake status)', color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-base font-semibold text-foreground">EMP Message Volume</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">Real-time message rate by EMP type — 5-minute rolling windows across all active locomotives</p>
+      </div>
+
+      {/* EMP Type Reference */}
+      <div className="grid grid-cols-3 gap-2">
+        {EMP_TYPES.map(e => (
+          <div key={e.id} className={`rounded border p-3 ${e.bg}`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className={`font-mono text-[11px] font-bold ${e.color}`}>{e.label}</span>
+              <span className="text-[9px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{e.dir}</span>
+            </div>
+            <div className="text-[11px] font-medium text-foreground">{e.name}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">{e.desc}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-[11px] font-semibold text-foreground">Dashboard EMP 1005 / 2005</div>
+              <div className="text-[10px] text-muted-foreground">Configuration Version List — message volume over time</div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2005</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-yellow-400"></span> EMP-1005</span>
+            </div>
+          </div>
+          <div style={{ height: 180 }}><canvas id="commEmpDualChart"></canvas></div>
+        </div>
+        <div className="rounded border border-border bg-card p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-[11px] font-semibold text-foreground">By EMP — EMP 2080</div>
+              <div className="text-[10px] text-muted-foreground">Authority Request message rate (msgs / 5-min window)</div>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2080</span>
+            </div>
+          </div>
+          <div style={{ height: 180 }}><canvas id="commEmp2080Chart"></canvas></div>
+        </div>
+      </div>
+
+      {/* Safety System context */}
+      <div className="rounded border border-slate-700/50 bg-slate-800/30 p-4">
+        <div className="text-[11px] font-semibold text-slate-300 mb-2">Safety System Context</div>
+        <div className="grid grid-cols-3 gap-3 text-[10px]">
+          <div className="space-y-1">
+            <div className="font-semibold text-cyan-400">🇨🇦 ETC-ATP (Enhanced Train Control — ATP)</div>
+            <div className="text-muted-foreground">High-risk CN Canada corridors with WIU wayside interfaces. Automatic brake enforcement of speed restrictions, authority limits, signal aspects, switch positions and work zones.</div>
+          </div>
+          <div className="space-y-1">
+            <div className="font-semibold text-teal-400">🇨🇦 ETC-DAS (Enhanced Train Control — DAS)</div>
+            <div className="text-muted-foreground">Lower-risk CN Canada corridors without WIU wayside interfaces. Real-time driver notifications for traction, braking, signaling and timetable. Advisory only — no automatic brake enforcement.</div>
+          </div>
+          <div className="space-y-1">
+            <div className="font-semibold text-amber-400">🇺🇸 PTC (Positive Train Control)</div>
+            <div className="text-muted-foreground">US federal mandate on CSXT interop subdivisions. Automatic brake enforcement. Uses the same EMP message protocol as ETC-ATP.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────────
 export default function CommIntel() {
-  const [activeSection, setActiveSection] = useState<"tnu" | "dynsub" | "wsrs">("tnu");
+  const [activeSection, setActiveSection] = useState<"tnu" | "dynsub" | "wsrs" | "emp">("tnu");
 
   const sections = [
     { id: "tnu" as const, label: "TNU Connectivity", icon: <Radio size={13} />, desc: "Dual-channel loss events" },
     { id: "dynsub" as const, label: "Dynamic Subscriptions", icon: <Activity size={13} />, desc: "Sub trends by release" },
     { id: "wsrs" as const, label: "WSRS Transport", icon: <BarChart2 size={13} />, desc: "Message threshold monitor" },
+    { id: "emp" as const, label: "EMP Message Volume", icon: <Activity size={13} />, desc: "EMP-1005/2005/2080 rates" },
   ];
 
   return (
@@ -423,6 +598,7 @@ export default function CommIntel() {
             {activeSection === "tnu" && <TnuTracker />}
             {activeSection === "dynsub" && <DynSubTrend />}
             {activeSection === "wsrs" && <WsrsMonitor />}
+            {activeSection === "emp" && <EMPVolumeSection />}
           </div>
         </div>
       </div>

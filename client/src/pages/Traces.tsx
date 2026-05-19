@@ -8,6 +8,179 @@ import {
   BarChart2, AlertCircle, RefreshCw, Download
 } from "lucide-react";
 
+// ─── EMP Chart Data ──────────────────────────────────────────────────────────
+// Simulated 5-min bucket time-series matching the Clearblade dashboard screenshots
+// EMP-1005: Config Version List (loco → BOS), EMP-2005: Config Version Response (BOS → loco)
+// EMP-2080: Authority Request (loco → BOS)
+const generateEMPTimeSeries = () => {
+  const labels: string[] = [];
+  const emp1005: number[] = [];
+  const emp2005: number[] = [];
+  const emp2080: number[] = [];
+  const base = new Date('2025-05-30T16:00:00Z');
+  for (let i = 0; i < 48; i++) {
+    const t = new Date(base.getTime() + i * 5 * 60 * 1000);
+    labels.push(t.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    // EMP-1005/2005: spiky pattern 1-14 matching screenshot
+    const spike = Math.random() < 0.15 ? Math.floor(Math.random() * 6) + 8 : 0;
+    emp1005.push(Math.floor(Math.random() * 7) + 2 + spike);
+    emp2005.push(Math.floor(Math.random() * 6) + 2 + (spike > 0 ? spike - 1 : 0));
+    // EMP-2080: smoother 30-60 range matching screenshot
+    emp2080.push(Math.floor(Math.random() * 20) + 30 + (Math.random() < 0.1 ? 15 : 0));
+  }
+  return { labels, emp1005, emp2005, emp2080 };
+};
+
+const EMP_DATA = generateEMPTimeSeries();
+
+// ─── EMP Charts Renderer Component ───────────────────────────────────────────
+function EMPChartsRenderer() {
+  useEffect(() => {
+    let dualChart: any = null;
+    let singleChart: any = null;
+
+    const buildCharts = () => {
+      const Chart = (window as any).Chart;
+      if (!Chart) return;
+
+      const dualCanvas = document.getElementById('empDualChart') as HTMLCanvasElement | null;
+      const singleCanvas = document.getElementById('emp2080Chart') as HTMLCanvasElement | null;
+
+      if (dualCanvas) {
+        // Destroy existing chart if any
+        const existing = Chart.getChart(dualCanvas);
+        if (existing) existing.destroy();
+        dualChart = new Chart(dualCanvas, {
+          type: 'line',
+          data: {
+            labels: EMP_DATA.labels,
+            datasets: [
+              {
+                label: 'EMP-2005',
+                data: EMP_DATA.emp2005,
+                borderColor: '#34d399',
+                backgroundColor: 'rgba(52,211,153,0.08)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.3,
+                fill: false,
+              },
+              {
+                label: 'EMP-1005',
+                data: EMP_DATA.emp1005,
+                borderColor: '#facc15',
+                backgroundColor: 'rgba(250,204,21,0.08)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.3,
+                fill: false,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: '#1e293b',
+                titleColor: '#94a3b8',
+                bodyColor: '#e2e8f0',
+                borderColor: '#334155',
+                borderWidth: 1,
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+              y: {
+                min: 0,
+                max: 16,
+                ticks: { color: '#64748b', font: { size: 9 }, stepSize: 4 },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+            },
+          },
+        });
+      }
+
+      if (singleCanvas) {
+        const existing2 = Chart.getChart(singleCanvas);
+        if (existing2) existing2.destroy();
+        singleChart = new Chart(singleCanvas, {
+          type: 'line',
+          data: {
+            labels: EMP_DATA.labels,
+            datasets: [
+              {
+                label: 'EMP-2080',
+                data: EMP_DATA.emp2080,
+                borderColor: '#34d399',
+                backgroundColor: 'rgba(52,211,153,0.08)',
+                borderWidth: 1.5,
+                pointRadius: 0,
+                tension: 0.3,
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                backgroundColor: '#1e293b',
+                titleColor: '#94a3b8',
+                bodyColor: '#e2e8f0',
+                borderColor: '#334155',
+                borderWidth: 1,
+              },
+            },
+            scales: {
+              x: {
+                ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+              y: {
+                min: 0,
+                max: 70,
+                ticks: { color: '#64748b', font: { size: 9 }, stepSize: 10 },
+                grid: { color: 'rgba(255,255,255,0.04)' },
+              },
+            },
+          },
+        });
+      }
+    };
+
+    // Load Chart.js from CDN if not already loaded
+    if (!(window as any).Chart) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+      script.onload = buildCharts;
+      document.head.appendChild(script);
+    } else {
+      buildCharts();
+    }
+
+    return () => {
+      if (dualChart) dualChart.destroy();
+      if (singleChart) singleChart.destroy();
+    };
+  }, []);
+
+  return null;
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StatusFilter = 'all' | 'complete' | 'degraded' | 'failed';
 type LatencyFilter = 'all' | 'gt1000' | 'gt2000' | 'gt5000';
@@ -393,19 +566,26 @@ export default function Traces() {
           </div>
         </div>
 
-        {/* ETC vs PTC Terminology Legend */}
+        {/* Safety System Terminology Legend */}
         <div className="flex flex-wrap gap-3 px-4 py-2.5 rounded border border-slate-700/50 bg-slate-800/40 text-[11px]">
-          <span className="font-semibold text-slate-400 self-center">Terminology:</span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-900/30 border border-cyan-700/40 text-cyan-300">
+          <span className="font-semibold text-slate-400 self-center">Safety Systems:</span>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-cyan-900/30 border border-cyan-700/40 text-cyan-300"
+            title="ETC-ATP: Enhanced Train Control \u2014 Automatic Train Protection. Deployed on high-risk CN Canada corridors with WIU wayside interfaces. Provides automatic brake enforcement of speed restrictions, authority limits, signal aspects, switch positions and work zones.">
             <span className="text-base">🇨🇦</span>
-            <span><span className="font-bold">ETC</span> (Electronic Train Control) — used on <span className="font-semibold">CN Canada</span> subdivisions</span>
+            <span><span className="font-bold">ETC-ATP</span> — Enhanced Train Control, Automatic Train Protection (CN Canada, high-risk, WIUs present, brake enforcement)</span>
           </span>
-          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-900/30 border border-amber-700/40 text-amber-300">
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-teal-900/30 border border-teal-700/40 text-teal-300"
+            title="ETC-DAS: Enhanced Train Control \u2014 Driver Advisory System. Deployed on lower-risk CN Canada corridors without WIU wayside interfaces. Provides real-time driver notifications for traction, braking, signaling and timetable. Advisory only \u2014 no automatic brake enforcement.">
+            <span className="text-base">🇨🇦</span>
+            <span><span className="font-bold">ETC-DAS</span> — Enhanced Train Control, Driver Advisory System (CN Canada, lower-risk, no WIUs, advisory only)</span>
+          </span>
+          <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-amber-900/30 border border-amber-700/40 text-amber-300"
+            title="PTC: Positive Train Control. US federal mandate for collision avoidance and automatic brake enforcement on US and CSXT interop subdivisions.">
             <span className="text-base">🇺🇸</span>
-            <span><span className="font-bold">PTC</span> (Positive Train Control) — used on <span className="font-semibold">US (CSXT / interop)</span> subdivisions</span>
+            <span><span className="font-bold">PTC</span> — Positive Train Control (US/CSXT interop, federal mandate, brake enforcement)</span>
           </span>
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-700/30 border border-slate-600/40 text-slate-400">
-            Both use the same <span className="font-mono font-bold text-slate-300">EMP</span> message protocol
+            All three use the same <span className="font-mono font-bold text-slate-300 mx-1">EMP</span> message protocol
           </span>
         </div>
 
@@ -439,6 +619,42 @@ export default function Traces() {
             </div>
           ))}
         </div>
+
+        {/* EMP Message Volume Charts */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* EMP-1005 / EMP-2005 Dual-Line Chart */}
+          <div className="rounded border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-[11px] font-semibold text-foreground">Dashboard EMP 1005 / 2005</div>
+                <div className="text-[10px] text-muted-foreground">Configuration Version List — message volume over time</div>
+              </div>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2005</span>
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-yellow-400"></span> EMP-1005</span>
+              </div>
+            </div>
+            <div style={{ height: 160 }}>
+              <canvas id="empDualChart"></canvas>
+            </div>
+          </div>
+          {/* EMP-2080 Single-Line Chart */}
+          <div className="rounded border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-[11px] font-semibold text-foreground">By EMP — EMP 2080</div>
+                <div className="text-[10px] text-muted-foreground">Authority Request message rate (msgs / 5-min window)</div>
+              </div>
+              <div className="flex items-center gap-3 text-[10px]">
+                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2080</span>
+              </div>
+            </div>
+            <div style={{ height: 160 }}>
+              <canvas id="emp2080Chart"></canvas>
+            </div>
+          </div>
+        </div>
+        <EMPChartsRenderer />
 
         {/* Search & Filter Bar */}
         <div className="flex items-center gap-2 flex-wrap p-3 rounded border border-border bg-card">
@@ -526,7 +742,7 @@ export default function Traces() {
                   ETC Phase
                 </th>
                 <th className="text-left px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-                  Region
+                  Safety System
                 </th>
                 <th className="text-right px-3 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium cursor-pointer select-none hover:text-foreground"
                   onClick={() => toggleSort('startTime')}>
@@ -605,20 +821,29 @@ export default function Traces() {
                           </span>
                         ) : <span className="text-muted-foreground">—</span>}
                       </td>
-                      {/* Region: ETC (Canada) vs PTC (USA) */}
+                      {/* Safety System: ETC-ATP / ETC-DAS / PTC */}
                       <td className="px-3 py-3">
                         {(() => {
-                          const canadaSubs = ['Bala','Ruel','Kingston','Capreol','MacTier','Oakville','Edson','Rivers','Wainwright'];
-                          const isCanada = canadaSubs.some(s => trace.subdivision.includes(s));
-                          return (
-                            <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border ${
-                              isCanada
-                                ? 'bg-cyan-900/30 text-cyan-300 border-cyan-700/40'
-                                : 'bg-amber-900/30 text-amber-300 border-amber-700/40'
-                            }`} title={isCanada ? 'Electronic Train Control — CN Canada subdivisions' : 'Positive Train Control — US/CSXT interop subdivisions'}>
-                              {isCanada ? '🇨🇦 ETC' : '🇺🇸 PTC'}
+                          const ss = trace.safetySystem;
+                          if (ss === 'ETC-ATP') return (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-cyan-900/30 text-cyan-300 border-cyan-700/40"
+                              title="ETC-ATP (Enhanced Train Control — Automatic Train Protection): CN Canada high-risk corridors with WIU wayside interfaces. Provides automatic brake enforcement of speed restrictions, authority limits, signal aspects, switch positions and work zones.">
+                              🇨🇦 ETC-ATP
                             </span>
                           );
+                          if (ss === 'ETC-DAS') return (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-teal-900/30 text-teal-300 border-teal-700/40"
+                              title="ETC-DAS (Enhanced Train Control — Driver Advisory System): CN Canada lower-risk corridors without WIU wayside interfaces. Provides real-time driver notifications for traction, braking, signaling and timetable — advisory only, no automatic brake enforcement.">
+                              🇨🇦 ETC-DAS
+                            </span>
+                          );
+                          if (ss === 'PTC') return (
+                            <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-amber-900/30 text-amber-300 border-amber-700/40"
+                              title="PTC (Positive Train Control): US federal mandate for collision avoidance and brake enforcement on US and CSXT interop subdivisions.">
+                              🇺🇸 PTC
+                            </span>
+                          );
+                          return <span className="text-muted-foreground text-[10px]">—</span>;
                         })()}
                       </td>
                       {/* Time */}
