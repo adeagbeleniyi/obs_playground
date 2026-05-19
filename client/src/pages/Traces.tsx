@@ -1,6 +1,6 @@
 import Layout from "@/components/Layout";
 import { syntheticTraces, type SyntheticTrace } from "@/lib/mockData";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import {
   GitBranch, CheckCircle, AlertTriangle, XCircle, Clock, Search,
   Filter, ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft,
@@ -518,9 +518,8 @@ export default function Traces() {
                 const isExpanded = expandedId === trace.id;
                 const rowNum = (page - 1) * pageSize + idx;
                 return (
-                  <>
+                  <Fragment key={trace.id}>
                     <tr
-                      key={trace.id}
                       onClick={() => setExpandedId(isExpanded ? null : trace.id)}
                       className={`group border-b border-border/50 cursor-pointer transition-colors
                         ${rowNum % 2 === 0 ? '' : 'bg-muted/5'}
@@ -575,13 +574,13 @@ export default function Traces() {
                       </td>
                     </tr>
                     {isExpanded && (
-                      <tr key={`${trace.id}-detail`} className="border-b border-border/50">
+                      <tr className="border-b border-border/50">
                         <td colSpan={9} className="p-0">
                           <TraceDetailPanel trace={trace} />
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {paged.length === 0 && (
