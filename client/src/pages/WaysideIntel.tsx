@@ -1,382 +1,560 @@
 import { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
-import { WAYSIDE_INFRA, type WaysideInfraPoint, type Health } from "@/lib/journeyData";
+import { assets } from "@/lib/mockData";
+import type { Asset, WIUHazardDetector, WIUSignal, WIUSwitch } from "@/lib/mockData";
 import {
-  Radio, Thermometer, Zap, Navigation, Server,
-  AlertTriangle, CheckCircle, XCircle, Clock,
-  ChevronDown, ChevronRight, Train, Search, Filter,
-  Calendar, TrendingUp, Users
+  Radio, MapPin, AlertTriangle, CheckCircle, XCircle, Clock,
+  ChevronDown, ChevronRight, Search, RefreshCw, Maximize2,
+  Navigation, Activity, Zap, GitBranch, Filter
 } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, PieChart, Pie, Cell, Legend
-} from "recharts";
 
-const healthBg: Record<Health, string> = {
-  healthy: "bg-emerald-500/10 border-emerald-500/25",
-  warning: "bg-amber-500/10 border-amber-500/25",
-  critical: "bg-red-500/10 border-red-500/25",
-  offline: "bg-slate-500/10 border-slate-500/25",
-};
-const healthDot: Record<Health, string> = {
-  healthy: "bg-emerald-400", warning: "bg-amber-400",
-  critical: "bg-red-400", offline: "bg-slate-500",
-};
-const healthColor: Record<Health, string> = {
-  healthy: "text-emerald-400", warning: "text-amber-400",
-  critical: "text-red-400", offline: "text-muted-foreground",
-};
-const HealthIcon = ({ h, size = 13 }: { h: Health; size?: number }) => {
-  if (h === "healthy") return <CheckCircle size={size} className="text-emerald-400" />;
-  if (h === "warning") return <AlertTriangle size={size} className="text-amber-400" />;
-  if (h === "critical") return <XCircle size={size} className="text-red-400" />;
-  return <Clock size={size} className="text-muted-foreground" />;
-};
-const typeLabel: Record<string, string> = {
-  wiu: "WIU", detector: "Detector", signal: "Signal",
-  crossing: "Crossing", base_station: "Base Station",
-};
-const typeIcon: Record<string, React.ReactNode> = {
-  wiu: <Radio size={13} />, detector: <Thermometer size={13} />,
-  signal: <Zap size={13} />, crossing: <Navigation size={13} />,
-  base_station: <Server size={13} />,
-};
-const typeColor: Record<string, string> = {
-  wiu: "text-blue-400 border-blue-500/40 bg-blue-500/10",
-  detector: "text-orange-400 border-orange-500/40 bg-orange-500/10",
-  signal: "text-yellow-400 border-yellow-500/40 bg-yellow-500/10",
-  crossing: "text-purple-400 border-purple-500/40 bg-purple-500/10",
-  base_station: "text-cyan-400 border-cyan-500/40 bg-cyan-500/10",
-};
-
-const TIME_WINDOWS = [
-  { label: "Last 6 hours",  value: "6h",  hours: 6 },
-  { label: "Last 12 hours", value: "12h", hours: 12 },
-  { label: "Last 24 hours", value: "24h", hours: 24 },
-  { label: "Last 48 hours", value: "48h", hours: 48 },
-  { label: "Last 7 days",   value: "7d",  hours: 168 },
-  { label: "All time",      value: "all", hours: Infinity },
+// ─── Filter tag definitions (matching Screen 4) ───────────────────────────────
+const FILTER_TAGS = [
+  { key: 'Critical',       label: 'Critical',        color: 'border-red-500/40 bg-red-500/10 text-red-400',     activeColor: 'border-red-500 bg-red-500/20 text-red-300' },
+  { key: 'Medium',         label: 'Medium',          color: 'border-amber-500/40 bg-amber-500/10 text-amber-400', activeColor: 'border-amber-500 bg-amber-500/20 text-amber-300' },
+  { key: 'Stale WIUs',     label: 'Stale WIUs',      color: 'border-orange-500/40 bg-orange-500/10 text-orange-400', activeColor: 'border-orange-500 bg-orange-500/20 text-orange-300' },
+  { key: 'PTC Issue',      label: 'PTC Issue',       color: 'border-sky-500/40 bg-sky-500/10 text-sky-400',     activeColor: 'border-sky-500 bg-sky-500/20 text-sky-300' },
+  { key: 'Dyn. Sub.',      label: 'Dyn. Sub.',       color: 'border-purple-500/40 bg-purple-500/10 text-purple-400', activeColor: 'border-purple-500 bg-purple-500/20 text-purple-300' },
+  { key: 'Direct Connect', label: 'Direct Connect',  color: 'border-teal-500/40 bg-teal-500/10 text-teal-400',  activeColor: 'border-teal-500 bg-teal-500/20 text-teal-300' },
+  { key: 'Foreign RR WIU', label: 'Foreign RR WIU',  color: 'border-slate-500/40 bg-slate-500/10 text-slate-400', activeColor: 'border-slate-500 bg-slate-500/20 text-slate-300' },
+  { key: 'Power Off',      label: 'Power Off',       color: 'border-red-500/40 bg-red-500/10 text-red-400',     activeColor: 'border-red-500 bg-red-500/20 text-red-300' },
+  { key: 'Light Out',      label: 'Light Out',       color: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400', activeColor: 'border-yellow-500 bg-yellow-500/20 text-yellow-300' },
+  { key: 'HMAC Failure',   label: 'HMAC Failure',    color: 'border-pink-500/40 bg-pink-500/10 text-pink-400',  activeColor: 'border-pink-500 bg-pink-500/20 text-pink-300' },
+  { key: 'CTC Alarm',      label: 'CTC Alarm',       color: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400', activeColor: 'border-indigo-500 bg-indigo-500/20 text-indigo-300' },
 ];
 
-function isWithinWindow(entry: { date: string; time: string }, hours: number): boolean {
-  if (hours === Infinity) return true;
-  const [eYear, eMon, eDay] = entry.date.split("-").map(Number);
-  const [eHour] = entry.time.split(":").map(Number);
-  const entryMs = new Date(eYear, eMon - 1, eDay, eHour).getTime();
-  const nowMs = new Date(2025, 4, 4, 17).getTime();
-  return nowMs - entryMs <= hours * 3600 * 1000;
+// ─── Signal aspect dots ────────────────────────────────────────────────────────
+function SignalAspects({ aspects }: { aspects: ('red' | 'yellow' | 'green' | 'dark')[] }) {
+  const color: Record<string, string> = {
+    red: 'bg-red-500',
+    yellow: 'bg-yellow-400',
+    green: 'bg-emerald-500',
+    dark: 'bg-slate-700 border border-slate-600',
+  };
+  return (
+    <div className="flex gap-0.5 items-center">
+      {aspects.map((a, i) => <span key={i} className={`w-2.5 h-2.5 rounded-full ${color[a]}`} />)}
+    </div>
+  );
 }
 
-function InfraCard({ point, timeWindowHours }: { point: WaysideInfraPoint; timeWindowHours: number }) {
-  const [open, setOpen] = useState(false);
-  const filteredLog = useMemo(
-    () => point.trafficLog.filter((t) => isWithinWindow(t, timeWindowHours)),
-    [point.trafficLog, timeWindowHours]
-  );
-  const uniqueTrains = useMemo(() => new Set(filteredLog.map((t) => t.trainId)).size, [filteredLog]);
-  const anomalies = filteredLog.filter((t) => t.status !== "healthy").length;
-  const hasCritical = filteredLog.some((t) => t.status === "critical");
-  const hasWarning = filteredLog.some((t) => t.status === "warning");
-  const worstStatus: Health = hasCritical ? "critical" : hasWarning ? "warning" : "healthy";
+// ─── Thinline Track Diagram (SVG) ─────────────────────────────────────────────
+function ThinlineDiagram({ asset }: { asset: Asset }) {
+  // Simplified SVG track diagram inspired by the real thinline view
+  const switches = asset.switches ?? [];
+  const signals = asset.signals ?? [];
+  const hazards = asset.hazardDetectors ?? [];
 
   return (
-    <div className={`rounded border mb-2 ${healthBg[worstStatus]}`}>
-      <button className="w-full flex items-center gap-3 px-3 py-2.5 text-left" onClick={() => setOpen(v => !v)}>
-        <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-medium flex-shrink-0 ${typeColor[point.type]}`}>
-          {typeIcon[point.type]}<span>{typeLabel[point.type]}</span>
+    <div className="bg-background border border-border rounded p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Thinline View</span>
+          <h3 className="text-[13px] font-bold text-foreground mt-0.5">{asset.subdivision.toUpperCase()} / {asset.name.replace('WIU ', '')}</h3>
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-foreground truncate">{point.name}</span>
-            <span className="text-[10px] text-muted-foreground font-mono">MP {point.milepost}</span>
-          </div>
-          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><TrendingUp size={10}/>{filteredLog.length} passages</span>
-            <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><Users size={10}/>{uniqueTrains} unique trains</span>
-            {anomalies > 0 && <span className={`flex items-center gap-1 text-[10px] ${hasCritical ? "text-red-400" : "text-amber-400"}`}><AlertTriangle size={10}/>{anomalies} anomalies</span>}
-          </div>
+        <div className="flex items-center gap-2">
+          {asset.wuiId && <span className="text-[9px] px-1.5 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-400">{asset.wuiId}</span>}
+          {asset.wmsStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded border ${asset.wmsStatus === 'OK' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>WMS</span>}
+          {asset.wrStatus && <span className={`text-[9px] px-1.5 py-0.5 rounded border ${asset.wrStatus === 'OK' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>WR</span>}
+          {asset.wdcId && <span className="text-[9px] px-1.5 py-0.5 rounded border border-slate-500/30 bg-slate-500/10 text-slate-400">{asset.wdcId}</span>}
         </div>
-        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${healthDot[point.status]}`} />
-        {open ? <ChevronDown size={14} className="text-muted-foreground flex-shrink-0"/> : <ChevronRight size={14} className="text-muted-foreground flex-shrink-0"/>}
-      </button>
+      </div>
 
-      {open && (
-        <div className="border-t border-border/40 px-3 pt-2 pb-3">
-          {filteredLog.length === 0 ? (
-            <p className="text-[11px] text-muted-foreground italic py-2">No passages in selected time window.</p>
-          ) : (
+      {/* SVG Track Diagram */}
+      <div className="relative bg-muted/5 rounded border border-border/50 overflow-hidden" style={{ minHeight: 180 }}>
+        <svg width="100%" height="180" viewBox="0 0 700 180" preserveAspectRatio="xMidYMid meet">
+          {/* Main track line */}
+          <line x1="40" y1="100" x2="660" y2="100" stroke="#334155" strokeWidth="3" />
+
+          {/* Siding / diverging track (if switches exist) */}
+          {switches.length > 0 && (
             <>
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="bg-background/40 rounded px-2 py-1.5 text-center">
-                  <div className="text-lg font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{filteredLog.length}</div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Passages</div>
-                </div>
-                <div className="bg-background/40 rounded px-2 py-1.5 text-center">
-                  <div className="text-lg font-bold text-cyan-400" style={{fontFamily:"Space Grotesk,sans-serif"}}>{uniqueTrains}</div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Unique Trains</div>
-                </div>
-                <div className="bg-background/40 rounded px-2 py-1.5 text-center">
-                  <div className={`text-lg font-bold ${anomalies > 0 ? (hasCritical ? "text-red-400" : "text-amber-400") : "text-emerald-400"}`} style={{fontFamily:"Space Grotesk,sans-serif"}}>{anomalies}</div>
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Anomalies</div>
-                </div>
+              <line x1="200" y1="100" x2="350" y2="55" stroke="#334155" strokeWidth="3" />
+              <line x1="350" y1="55" x2="500" y2="55" stroke="#334155" strokeWidth="3" />
+              <line x1="500" y1="55" x2="580" y2="100" stroke="#334155" strokeWidth="3" />
+            </>
+          )}
+
+          {/* Switch markers */}
+          {switches.slice(0, 4).map((sw, i) => {
+            const x = 200 + i * 120;
+            const isNormal = sw.position === 'N';
+            return (
+              <g key={sw.name}>
+                <rect x={x - 8} y="93" width="16" height="14" rx="2"
+                  fill={isNormal ? '#10b981' : sw.position === 'R' ? '#f59e0b' : '#64748b'}
+                  opacity="0.9"
+                />
+                <text x={x} y="104" textAnchor="middle" fontSize="8" fill="white" fontWeight="bold">{sw.position}</text>
+                <text x={x} y="125" textAnchor="middle" fontSize="7" fill="#94a3b8">{sw.name.replace(' SWITCH', '')}</text>
+              </g>
+            );
+          })}
+
+          {/* Signal markers */}
+          {signals.slice(0, 4).map((sig, i) => {
+            const x = 120 + i * 140;
+            const topAspect = sig.aspects[0];
+            const midAspect = sig.aspects[1];
+            const botAspect = sig.aspects[2];
+            const aspectColor = (a: string) => a === 'red' ? '#ef4444' : a === 'yellow' ? '#eab308' : a === 'green' ? '#10b981' : '#1e293b';
+            return (
+              <g key={sig.name}>
+                {/* Signal mast */}
+                <line x1={x} y1="75" x2={x} y2="97" stroke="#475569" strokeWidth="1.5" />
+                {/* Signal head */}
+                <rect x={x - 7} y="62" width="14" height="30" rx="3" fill="#1e293b" stroke="#334155" />
+                <circle cx={x} cy="68" r="3.5" fill={aspectColor(topAspect)} />
+                <circle cx={x} cy="77" r="3.5" fill={aspectColor(midAspect)} />
+                <circle cx={x} cy="86" r="3.5" fill={aspectColor(botAspect)} />
+                <text x={x} y="55" textAnchor="middle" fontSize="7" fill="#94a3b8">{sig.name.replace(' SIGNAL', '')}</text>
+                <text x={x + 9} y="68" fontSize="7" fill="#64748b">/{sig.id}</text>
+              </g>
+            );
+          })}
+
+          {/* Hazard detector markers */}
+          {hazards.slice(0, 5).map((hd, i) => {
+            const x = 80 + i * 120;
+            const isActive = hd.status === 'active';
+            const isFault = hd.status === 'fault';
+            return (
+              <g key={hd.name}>
+                <line x1={x} y1="100" x2={x} y2="118" stroke="#475569" strokeWidth="1.5" />
+                <rect x={x - 10} y="118" width="20" height="12" rx="2"
+                  fill={isActive ? '#0ea5e9' : isFault ? '#ef4444' : '#1e293b'}
+                  stroke={isActive ? '#38bdf8' : isFault ? '#f87171' : '#334155'}
+                />
+                <text x={x} y="127" textAnchor="middle" fontSize="6" fill={isActive ? 'white' : isFault ? 'white' : '#64748b'}>
+                  {hd.name.replace(' TRACK', '').replace(' SWITCH', '').replace(' OUT', '').replace(' OFF', '')}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Milepost labels */}
+          <text x="40" y="145" fontSize="8" fill="#475569">MP {asset.milepost}</text>
+          <text x="620" y="145" fontSize="8" fill="#475569" textAnchor="end">→</text>
+
+          {/* Direction arrows */}
+          <text x="660" y="98" fontSize="10" fill="#334155">→</text>
+          <text x="30" y="98" fontSize="10" fill="#334155">←</text>
+        </svg>
+      </div>
+
+      {/* Legend */}
+      <div className="flex items-center gap-4 mt-2 flex-wrap">
+        <div className="flex items-center gap-1"><span className="w-3 h-1 bg-emerald-500 rounded" /><span className="text-[9px] text-muted-foreground">Switch N</span></div>
+        <div className="flex items-center gap-1"><span className="w-3 h-1 bg-amber-500 rounded" /><span className="text-[9px] text-muted-foreground">Switch R</span></div>
+        <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /><span className="text-[9px] text-muted-foreground">Signal Red</span></div>
+        <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-400" /><span className="text-[9px] text-muted-foreground">Signal Yellow</span></div>
+        <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-sky-500" /><span className="text-[9px] text-muted-foreground">Hazard Active</span></div>
+        <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500" /><span className="text-[9px] text-muted-foreground">Hazard Fault</span></div>
+      </div>
+    </div>
+  );
+}
+
+// ─── WIU Expanded Detail Panel ─────────────────────────────────────────────────
+function WIUDetailPanel({ asset }: { asset: Asset }) {
+  const [view, setView] = useState<'panels' | 'thinline'>('panels');
+
+  return (
+    <div className="border-t border-border">
+      {/* View switcher */}
+      <div className="flex items-center gap-0 border-b border-border bg-muted/5">
+        <button
+          onClick={() => setView('panels')}
+          className={`px-4 py-2 text-[11px] font-medium border-b-2 transition-colors ${view === 'panels' ? 'border-sky-500 text-sky-400' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Equipment Status
+        </button>
+        <button
+          onClick={() => setView('thinline')}
+          className={`px-4 py-2 text-[11px] font-medium border-b-2 transition-colors ${view === 'thinline' ? 'border-sky-500 text-sky-400' : 'border-transparent text-muted-foreground hover:text-foreground'}`}
+        >
+          Thinline View
+        </button>
+      </div>
+
+      {view === 'thinline' ? (
+        <div className="p-4">
+          <ThinlineDiagram asset={asset} />
+        </div>
+      ) : (
+        <div className="p-4 bg-muted/5">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Hazard Detectors */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-3">
+                <Activity size={12} className="text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Hazard Detectors</span>
               </div>
-              <div className="mb-2">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Unique Trains in Window</div>
-                <div className="flex flex-wrap gap-1">
-                  {Array.from(new Set(filteredLog.map(t => t.trainId))).map(tid => {
-                    const hasA = filteredLog.some(t => t.trainId === tid && t.status !== "healthy");
-                    return (
-                      <span key={tid} className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[10px] font-mono ${hasA ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-border bg-background/40 text-muted-foreground"}`}>
-                        <Train size={9}/>{tid}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Passage Log</div>
               <div className="space-y-1.5">
-                {filteredLog.map((entry, i) => (
-                  <div key={i} className={`flex items-start gap-2 px-2 py-1.5 rounded border text-[11px] ${entry.status === "critical" ? "bg-red-500/10 border-red-500/25" : entry.status === "warning" ? "bg-amber-500/10 border-amber-500/25" : "bg-background/30 border-border/30"}`}>
-                    <HealthIcon h={entry.status} size={12}/>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-foreground font-mono">{entry.trainId}</span>
-                        <span className="text-muted-foreground">{entry.leadLoco}</span>
-                        <span className={`text-[9px] px-1 py-0.5 rounded border ${entry.direction === "East" || entry.direction === "North" ? "border-blue-500/40 bg-blue-500/10 text-blue-300" : "border-purple-500/40 bg-purple-500/10 text-purple-300"}`}>{entry.direction}</span>
-                        <span className="text-muted-foreground ml-auto text-[10px]">{entry.date} {entry.time}</span>
-                      </div>
-                      <div className="text-muted-foreground mt-0.5 text-[10px]">{entry.detail}</div>
-                      {entry.latencyMs !== undefined && (
-                        <div className={`text-[10px] mt-0.5 ${entry.latencyMs > 2000 ? "text-amber-400" : "text-emerald-400"}`}>
-                          Latency: {entry.latencyMs >= 1000 ? `${(entry.latencyMs/1000).toFixed(1)}s` : `${entry.latencyMs}ms`}
-                        </div>
+                {(asset.hazardDetectors ?? []).map(d => (
+                  <div key={d.name} className="flex items-center justify-between text-[11px] py-0.5 border-b border-border/30">
+                    <span className="text-foreground/80">{d.name}</span>
+                    <span className={`flex items-center gap-1 ${
+                      d.status === 'active' ? 'text-sky-400' :
+                      d.status === 'fault' ? 'text-red-400' :
+                      d.status === 'unknown' ? 'text-slate-500' :
+                      'text-muted-foreground'
+                    }`}>
+                      {d.status === 'active' && <span className="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_4px_#38bdf8]" />}
+                      {d.status === 'fault' && <XCircle size={10} />}
+                      {d.status === 'ok' && <span className="w-2 h-2 rounded-full bg-muted-foreground/40" />}
+                      {d.status === 'unknown' && <span className="text-[9px]">?</span>}
+                      <span className="text-[9px] uppercase">{d.status}</span>
+                    </span>
+                  </div>
+                ))}
+                {(asset.hazardDetectors ?? []).length === 0 && (
+                  <span className="text-[11px] text-muted-foreground">No hazard detectors</span>
+                )}
+              </div>
+            </div>
+
+            {/* Signals */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-3">
+                <Zap size={12} className="text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Signals</span>
+              </div>
+              <div className="space-y-2">
+                {(asset.signals ?? []).map(s => (
+                  <div key={s.name} className="flex items-center justify-between text-[11px] py-0.5 border-b border-border/30">
+                    <span className="text-foreground/80">{s.name} / {s.id}</span>
+                    <div className="flex items-center gap-2">
+                      <SignalAspects aspects={s.aspects} />
+                      {s.count !== undefined && (
+                        <span className="text-[10px] text-muted-foreground w-5 text-right font-mono">{s.count}</span>
                       )}
                     </div>
                   </div>
                 ))}
+                {(asset.signals ?? []).length === 0 && (
+                  <span className="text-[11px] text-muted-foreground">No signals</span>
+                )}
               </div>
-            </>
-          )}
+            </div>
+
+            {/* Switches */}
+            <div>
+              <div className="flex items-center gap-1.5 mb-3">
+                <GitBranch size={12} className="text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Switches</span>
+              </div>
+              <div className="space-y-1.5">
+                {(asset.switches ?? []).map(sw => (
+                  <div key={sw.name} className="flex items-center justify-between text-[11px] py-0.5 border-b border-border/30">
+                    <span className="text-foreground/80">{sw.name} / {sw.id}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded border ${
+                      sw.position === 'N' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' :
+                      sw.position === 'R' ? 'border-amber-500/30 bg-amber-500/10 text-amber-400' :
+                      'border-slate-500/30 bg-slate-500/10 text-slate-400'
+                    }`}>
+                      {sw.position}
+                    </span>
+                  </div>
+                ))}
+                {(asset.switches ?? []).length === 0 && (
+                  <span className="text-[11px] text-muted-foreground">No switch status</span>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function SubdivisionSection({ subdiv, points, timeWindowHours }: { subdiv: string; points: WaysideInfraPoint[]; timeWindowHours: number }) {
-  const [open, setOpen] = useState(true);
-  const totalPassages = useMemo(() => points.reduce((acc, p) => acc + p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours)).length, 0), [points, timeWindowHours]);
-  const uniqueTrains = useMemo(() => { const ids = new Set<string>(); points.forEach(p => p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours)).forEach(t => ids.add(t.trainId))); return ids.size; }, [points, timeWindowHours]);
-  const anomalies = useMemo(() => points.reduce((acc, p) => acc + p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours) && t.status !== "healthy").length, 0), [points, timeWindowHours]);
-  const hasCritical = points.some(p => p.status === "critical");
-  const hasWarning = points.some(p => p.status === "warning");
+// ─── WIU Row ───────────────────────────────────────────────────────────────────
+function WIURow({ asset, expanded, onToggle }: { asset: Asset; expanded: boolean; onToggle: () => void }) {
+  const criticalCount = (asset.hazardDetectors ?? []).filter(d => d.status === 'fault').length;
+  const mediumCount = (asset.hazardDetectors ?? []).filter(d => d.status === 'active').length;
 
   return (
-    <div className="mb-6">
-      <button className="w-full flex items-center gap-3 mb-2" onClick={() => setOpen(v => !v)}>
-        <div className="flex items-center gap-2 flex-1">
-          {open ? <ChevronDown size={15} className="text-muted-foreground"/> : <ChevronRight size={15} className="text-muted-foreground"/>}
-          <span className="text-sm font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{subdiv} Subdivision</span>
-          {hasCritical && <span className="w-2 h-2 rounded-full bg-red-400"/>}
-          {!hasCritical && hasWarning && <span className="w-2 h-2 rounded-full bg-amber-400"/>}
+    <>
+      <div
+        className={`flex items-center gap-3 px-4 py-3 border-b border-border/40 cursor-pointer hover:bg-muted/10 transition-colors ${expanded ? 'bg-muted/10' : ''}`}
+        onClick={onToggle}
+      >
+        {/* Expand */}
+        <div className="shrink-0">
+          {expanded ? <ChevronDown size={12} className="text-muted-foreground" /> : <ChevronRight size={12} className="text-muted-foreground" />}
         </div>
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><TrendingUp size={10}/>{totalPassages} passages</span>
-          <span className="flex items-center gap-1"><Users size={10}/>{uniqueTrains} trains</span>
-          <span className="flex items-center gap-1"><Server size={10}/>{points.length} sites</span>
-          {anomalies > 0 && <span className={`flex items-center gap-1 ${hasCritical ? "text-red-400" : "text-amber-400"}`}><AlertTriangle size={10}/>{anomalies} anomalies</span>}
+
+        {/* Milepost + Name */}
+        <div className="w-48 shrink-0">
+          <div className="text-[10px] text-muted-foreground font-mono">{asset.milepost ? `${asset.milepost}` : '—'}</div>
+          <div className="text-[12px] font-semibold text-foreground truncate">{asset.name}</div>
         </div>
-      </button>
+
+        {/* Status badges */}
+        <div className="flex items-center gap-1.5 flex-wrap w-40 shrink-0">
+          {asset.wuiId && <span className="text-[9px] px-1 py-0.5 rounded border border-sky-500/30 bg-sky-500/10 text-sky-400">{asset.wuiId}</span>}
+          {asset.wmsStatus && <span className={`text-[9px] px-1 py-0.5 rounded border ${asset.wmsStatus === 'OK' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>WMS</span>}
+          {asset.wrStatus && <span className={`text-[9px] px-1 py-0.5 rounded border ${asset.wrStatus === 'OK' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-red-500/30 bg-red-500/10 text-red-400'}`}>WR</span>}
+          {asset.wdcId && <span className="text-[9px] px-1 py-0.5 rounded border border-slate-500/30 bg-slate-500/10 text-slate-400">{asset.wdcId}</span>}
+        </div>
+
+        {/* Subdivision */}
+        <div className="text-[11px] text-muted-foreground w-28 shrink-0">{asset.subdivision}</div>
+
+        {/* Alarm counts */}
+        <div className="flex items-center gap-2 w-24 shrink-0">
+          {criticalCount > 0 && <span className="flex items-center gap-0.5 text-[10px] text-red-400"><XCircle size={9} />{criticalCount}</span>}
+          {mediumCount > 0 && <span className="flex items-center gap-0.5 text-[10px] text-amber-400"><AlertTriangle size={9} />{mediumCount}</span>}
+          {criticalCount === 0 && mediumCount === 0 && <span className="text-[10px] text-emerald-400 flex items-center gap-0.5"><CheckCircle size={9} />OK</span>}
+        </div>
+
+        {/* Filter tags */}
+        <div className="flex items-center gap-1 flex-wrap flex-1">
+          {(asset.filterTags ?? []).map(tag => {
+            const def = FILTER_TAGS.find(f => f.key === tag);
+            return (
+              <span key={tag} className={`text-[9px] px-1.5 py-0.5 rounded border ${def?.color ?? 'border-border text-muted-foreground'}`}>{tag}</span>
+            );
+          })}
+        </div>
+
+        {/* Last HB */}
+        <div className="text-[10px] text-muted-foreground w-20 text-right shrink-0 flex items-center gap-1 justify-end">
+          <Clock size={9} />{asset.lastSeen}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          <button className="p-1 rounded hover:bg-muted/20 text-muted-foreground hover:text-foreground" title="Refresh"><RefreshCw size={11} /></button>
+          <button className="p-1 rounded hover:bg-muted/20 text-muted-foreground hover:text-foreground" title="Expand"><Maximize2 size={11} /></button>
+          <button className="p-1 rounded hover:bg-muted/20 text-muted-foreground hover:text-foreground" title="Location"><Navigation size={11} /></button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-b border-border">
+          <WIUDetailPanel asset={asset} />
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Subdivision Group ─────────────────────────────────────────────────────────
+function SubdivisionGroup({ subdivision, wius, expandedIds, onToggle }: {
+  subdivision: string;
+  wius: Asset[];
+  expandedIds: Set<string>;
+  onToggle: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const critCount = wius.filter(w => w.status === 'critical').length;
+  const warnCount = wius.filter(w => w.status === 'warning').length;
+
+  return (
+    <div className="border border-border rounded mb-3 overflow-hidden">
+      {/* Subdivision header */}
+      <div
+        className="flex items-center gap-3 px-4 py-2.5 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        {open ? <ChevronDown size={12} className="text-muted-foreground" /> : <ChevronRight size={12} className="text-muted-foreground" />}
+        <MapPin size={12} className="text-sky-400" />
+        <span className="text-[12px] font-semibold text-foreground">{subdivision.toUpperCase()}</span>
+        <span className="text-[10px] text-muted-foreground">{wius.length} WIU{wius.length !== 1 ? 's' : ''}</span>
+        {critCount > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded border border-red-500/30 bg-red-500/10 text-red-400">{critCount} Critical</span>}
+        {warnCount > 0 && <span className="text-[9px] px-1.5 py-0.5 rounded border border-amber-500/30 bg-amber-500/10 text-amber-400">{warnCount} Warning</span>}
+      </div>
+
+      {/* WIU rows */}
       {open && (
-        <div className="pl-4 border-l border-border/40">
-          {points.map(p => <InfraCard key={p.id} point={p} timeWindowHours={timeWindowHours}/>)}
+        <div>
+          {/* Column headers */}
+          <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/10 border-b border-border/40">
+            <div className="w-4 shrink-0" />
+            <div className="w-48 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">WIU / Location</div>
+            <div className="w-40 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Status Badges</div>
+            <div className="w-28 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Subdivision</div>
+            <div className="w-24 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Alarms</div>
+            <div className="flex-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Flags</div>
+            <div className="w-20 text-right shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Last H.B.</div>
+            <div className="w-16 shrink-0" />
+          </div>
+          {wius.map(w => (
+            <WIURow key={w.id} asset={w} expanded={expandedIds.has(w.id)} onToggle={() => onToggle(w.id)} />
+          ))}
         </div>
       )}
     </div>
   );
 }
 
+// ─── Main WaysideIntel Page ────────────────────────────────────────────────────
 export default function WaysideIntel() {
-  const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [subdivFilter, setSubdivFilter] = useState("all");
-  const [timeWindow, setTimeWindow] = useState("48h");
+  const [search, setSearch] = useState('');
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [groupBySubdivision, setGroupBySubdivision] = useState(true);
 
-  const timeWindowHours = useMemo(() => TIME_WINDOWS.find(w => w.value === timeWindow)?.hours ?? 48, [timeWindow]);
+  const wius = useMemo(() => assets.filter(a => a.type === 'wayside'), []);
 
-  const filteredInfra = useMemo(() => WAYSIDE_INFRA.filter(p => {
-    if (subdivFilter !== "all" && p.subdivision !== subdivFilter) return false;
-    if (typeFilter !== "all" && p.type !== typeFilter) return false;
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase()) && !p.subdivision.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  }), [search, typeFilter, subdivFilter]);
+  // Filter tag counts
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    FILTER_TAGS.forEach(f => {
+      counts[f.key] = wius.filter(w => (w.filterTags ?? []).includes(f.key)).length;
+    });
+    counts['Critical'] = wius.filter(w => w.status === 'critical').length;
+    counts['Medium'] = wius.filter(w => w.status === 'warning').length;
+    return counts;
+  }, [wius]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, WaysideInfraPoint[]>();
-    filteredInfra.forEach(p => { if (!map.has(p.subdivision)) map.set(p.subdivision, []); map.get(p.subdivision)!.push(p); });
+  const toggleFilter = (key: string) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const filteredWIUs = useMemo(() => {
+    let list = wius;
+    if (search) list = list.filter(w => w.name.toLowerCase().includes(search.toLowerCase()) || w.subdivision.toLowerCase().includes(search.toLowerCase()));
+    if (activeFilters.size > 0) {
+      list = list.filter(w => {
+        const tags = w.filterTags ?? [];
+        if (activeFilters.has('Critical') && w.status !== 'critical') return false;
+        if (activeFilters.has('Medium') && w.status !== 'warning') return false;
+        for (const f of Array.from(activeFilters)) {
+          if (f !== 'Critical' && f !== 'Medium' && !tags.includes(f)) return false;
+        }
+        return true;
+      });
+    }
+    return list;
+  }, [wius, search, activeFilters]);
+
+  const subdivisions = useMemo(() => {
+    const map: Record<string, Asset[]> = {};
+    filteredWIUs.forEach(w => {
+      (map[w.subdivision] = map[w.subdivision] ?? []).push(w);
+    });
     return map;
-  }, [filteredInfra]);
+  }, [filteredWIUs]);
 
-  const networkStats = useMemo(() => {
-    let totalPassages = 0; const ids = new Set<string>(); let anomalies = 0;
-    WAYSIDE_INFRA.forEach(p => p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours)).forEach(t => { totalPassages++; ids.add(t.trainId); if (t.status !== "healthy") anomalies++; }));
-    return { totalPassages, uniqueTrains: ids.size, anomalies };
-  }, [timeWindowHours]);
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
-  const activeSubs = useMemo(() => Array.from(new Set(WAYSIDE_INFRA.map(p => p.subdivision))), []);
+  // Summary counts
+  const totalWIUs = wius.length;
+  const criticalWIUs = wius.filter(w => w.status === 'critical').length;
+  const staleWIUs = wius.filter(w => (w.filterTags ?? []).includes('Stale WIUs')).length;
+  const ptcIssueWIUs = wius.filter(w => (w.filterTags ?? []).includes('PTC Issue')).length;
 
   return (
     <Layout>
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-border">
-          <div className="flex items-center justify-between mb-1">
-            <h1 className="text-xl font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>Wayside Intelligence</h1>
-            <div className="flex items-center gap-2 text-[10px] text-emerald-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>Live · Dynatrace Grail
+      <div className="p-6 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Wayside Intelligence</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">WASP · WIU Network · Hazard Detectors · Signals · Switches</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-muted-foreground">Last update: {new Date().toLocaleTimeString()}</span>
+            <span className="text-[10px] text-muted-foreground">AUTO REFRESH</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+          </div>
+        </div>
+
+        {/* Filter tag bar (matching Screen 4) */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {FILTER_TAGS.map(f => {
+            const count = tagCounts[f.key] ?? 0;
+            const active = activeFilters.has(f.key);
+            return (
+              <button
+                key={f.key}
+                onClick={() => toggleFilter(f.key)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-medium rounded border transition-colors ${active ? f.activeColor : f.color}`}
+              >
+                <span className="font-bold text-[12px]">{count}</span>
+                <span>{f.label}</span>
+              </button>
+            );
+          })}
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative">
+              <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search WIU, subdivision…"
+                className="pl-7 pr-3 py-1.5 text-[11px] bg-muted/20 border border-border rounded text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-sky-500 w-52"
+              />
             </div>
-          </div>
-          <p className="text-xs text-muted-foreground">All trackside infrastructure grouped by subdivision — WIUs, detectors, signals, crossings, base stations</p>
-        </div>
-
-        {/* Network KPIs */}
-        <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-3 border-b border-border bg-background/30">
-          <div className="bg-background/60 rounded border border-border px-3 py-2">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Total Passages</div>
-            <div className="text-2xl font-bold text-foreground" style={{fontFamily:"Space Grotesk,sans-serif"}}>{networkStats.totalPassages}</div>
-            <div className="text-[10px] text-muted-foreground">{TIME_WINDOWS.find(w => w.value === timeWindow)?.label}</div>
-          </div>
-          <div className="bg-background/60 rounded border border-border px-3 py-2">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Unique Trains</div>
-            <div className="text-2xl font-bold text-cyan-400" style={{fontFamily:"Space Grotesk,sans-serif"}}>{networkStats.uniqueTrains}</div>
-            <div className="text-[10px] text-muted-foreground">Distinct train IDs in window</div>
-          </div>
-          <div className="bg-background/60 rounded border border-border px-3 py-2">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">Anomalies</div>
-            <div className={`text-2xl font-bold ${networkStats.anomalies > 0 ? "text-amber-400" : "text-emerald-400"}`} style={{fontFamily:"Space Grotesk,sans-serif"}}>{networkStats.anomalies}</div>
-            <div className="text-[10px] text-muted-foreground">Warnings + criticals</div>
+            <button
+              onClick={() => setGroupBySubdivision(g => !g)}
+              className={`px-2.5 py-1.5 text-[10px] rounded border transition-colors ${groupBySubdivision ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-border text-muted-foreground'}`}
+            >
+              Group by Subdivision
+            </button>
           </div>
         </div>
 
-        {/* Analytics Charts */}
-        {(() => {
-          // Detector type distribution
-          const typeCounts: Record<string, number> = {};
-          WAYSIDE_INFRA.forEach(p => { typeCounts[typeLabel[p.type] || p.type] = (typeCounts[typeLabel[p.type] || p.type] || 0) + 1; });
-          const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
-          const TYPE_COLORS = ['#38BDF8', '#F59E0B', '#A78BFA', '#10B981', '#FB923C'];
-
-          // Health status distribution
-          const healthCounts = { Healthy: 0, Warning: 0, Critical: 0, Offline: 0 };
-          WAYSIDE_INFRA.forEach(p => {
-            if (p.status === 'healthy') healthCounts.Healthy++;
-            else if (p.status === 'warning') healthCounts.Warning++;
-            else if (p.status === 'critical') healthCounts.Critical++;
-            else healthCounts.Offline++;
-          });
-          const healthData = Object.entries(healthCounts).map(([name, value]) => ({ name, value }));
-          const HEALTH_COLORS = { Healthy: '#10B981', Warning: '#F59E0B', Critical: '#EF4444', Offline: '#64748b' };
-
-          // Passages by subdivision
-          const subPassages: Record<string, number> = {};
-          WAYSIDE_INFRA.forEach(p => {
-            const count = p.trafficLog.filter(t => isWithinWindow(t, timeWindowHours)).length;
-            subPassages[p.subdivision] = (subPassages[p.subdivision] || 0) + count;
-          });
-          const subData = Object.entries(subPassages).map(([sub, count]) => ({ sub, count })).sort((a, b) => b.count - a.count).slice(0, 8);
-
-          const tooltipStyle = {
-            contentStyle: { background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 6, fontSize: 11 },
-            labelStyle: { color: 'hsl(var(--muted-foreground))', fontSize: 10 },
-          };
-
-          return (
-            <div className="flex-shrink-0 grid grid-cols-3 gap-3 px-6 py-3 border-b border-border bg-background/20">
-              <div className="bg-background/60 rounded border border-border p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Infrastructure by Type</p>
-                <ResponsiveContainer width="100%" height={110}>
-                  <PieChart>
-                    <Pie data={typeData} cx="50%" cy="50%" outerRadius={42} dataKey="value" paddingAngle={2}>
-                      {typeData.map((_, i) => <Cell key={i} fill={TYPE_COLORS[i % TYPE_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip {...tooltipStyle} />
-                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="bg-background/60 rounded border border-border p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Health Status</p>
-                <ResponsiveContainer width="100%" height={110}>
-                  <PieChart>
-                    <Pie data={healthData} cx="50%" cy="50%" outerRadius={42} dataKey="value" paddingAngle={2}>
-                      {healthData.map((entry) => <Cell key={entry.name} fill={HEALTH_COLORS[entry.name as keyof typeof HEALTH_COLORS]} />)}
-                    </Pie>
-                    <Tooltip {...tooltipStyle} />
-                    <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 9 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="bg-background/60 rounded border border-border p-3">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Passages by Subdivision</p>
-                <ResponsiveContainer width="100%" height={110}>
-                  <BarChart data={subData} margin={{ left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="sub" tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 8, fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip {...tooltipStyle} />
-                    <Bar dataKey="count" fill="#38BDF8" name="Passages" radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+        {/* Summary KPI bar */}
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: 'Total WIUs', value: totalWIUs, color: 'text-foreground' },
+            { label: 'Critical', value: criticalWIUs, color: criticalWIUs > 0 ? 'text-red-400' : 'text-muted-foreground' },
+            { label: 'Stale WIUs', value: staleWIUs, color: staleWIUs > 0 ? 'text-orange-400' : 'text-muted-foreground' },
+            { label: 'PTC Issues', value: ptcIssueWIUs, color: ptcIssueWIUs > 0 ? 'text-amber-400' : 'text-muted-foreground' },
+          ].map(k => (
+            <div key={k.label} className="rounded border border-border bg-muted/10 p-3">
+              <div className={`text-xl font-bold ${k.color}`}>{k.value}</div>
+              <div className="text-[10px] text-muted-foreground mt-0.5">{k.label}</div>
             </div>
-          );
-        })()}
-
-        {/* Filters */}
-        <div className="flex-shrink-0 flex items-center gap-2 px-6 py-2.5 border-b border-border bg-background/20 flex-wrap">
-          <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
-            <Calendar size={12} className="text-muted-foreground"/>
-            <select value={timeWindow} onChange={e => setTimeWindow(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
-              {TIME_WINDOWS.map(w => <option key={w.value} value={w.value} className="bg-card">{w.label}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
-            <Filter size={12} className="text-muted-foreground"/>
-            <select value={subdivFilter} onChange={e => setSubdivFilter(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
-              <option value="all" className="bg-card">All Subdivisions</option>
-              {activeSubs.map(s => <option key={s} value={s} className="bg-card">{s}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1">
-            <Server size={12} className="text-muted-foreground"/>
-            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="bg-transparent text-[11px] text-foreground outline-none cursor-pointer">
-              <option value="all" className="bg-card">All Types</option>
-              <option value="wiu" className="bg-card">WIU</option>
-              <option value="detector" className="bg-card">Detector</option>
-              <option value="signal" className="bg-card">Signal</option>
-              <option value="crossing" className="bg-card">Crossing</option>
-              <option value="base_station" className="bg-card">Base Station</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-1.5 bg-background/60 border border-border rounded px-2 py-1 flex-1 max-w-xs">
-            <Search size={12} className="text-muted-foreground"/>
-            <input type="text" placeholder="Search infrastructure..." value={search} onChange={e => setSearch(e.target.value)} className="bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground outline-none w-full"/>
-          </div>
-          <span className="text-[10px] text-muted-foreground ml-auto">{filteredInfra.length} sites</span>
+          ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
-          {grouped.size === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
-              <Search size={28} className="mb-2 opacity-40"/>
-              <p className="text-sm">No infrastructure matches your filters.</p>
+        {/* WIU list */}
+        {filteredWIUs.length === 0 ? (
+          <div className="rounded border border-border p-8 text-center text-[12px] text-muted-foreground">
+            No WIUs match the current filters.
+          </div>
+        ) : groupBySubdivision ? (
+          Object.entries(subdivisions).map(([sub, wius]) => (
+            <SubdivisionGroup
+              key={sub}
+              subdivision={sub}
+              wius={wius}
+              expandedIds={expandedIds}
+              onToggle={toggleExpand}
+            />
+          ))
+        ) : (
+          <div className="border border-border rounded overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-1.5 bg-muted/10 border-b border-border/40">
+              <div className="w-4 shrink-0" />
+              <div className="w-48 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">WIU / Location</div>
+              <div className="w-40 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Status Badges</div>
+              <div className="w-28 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Subdivision</div>
+              <div className="w-24 shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Alarms</div>
+              <div className="flex-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Flags</div>
+              <div className="w-20 text-right shrink-0 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Last H.B.</div>
+              <div className="w-16 shrink-0" />
             </div>
-          ) : (
-            Array.from(grouped.entries()).map(([subdiv, points]) => (
-              <SubdivisionSection key={subdiv} subdiv={subdiv} points={points} timeWindowHours={timeWindowHours}/>
-            ))
-          )}
-        </div>
+            {filteredWIUs.map(w => (
+              <WIURow key={w.id} asset={w} expanded={expandedIds.has(w.id)} onToggle={() => toggleExpand(w.id)} />
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   );

@@ -243,8 +243,9 @@ export default function Dashboard() {
     { label: "Arriving",         value: isLive ? arriving.length  : currentNetworkSnap.trainsArriving,  unit: "",    color: "text-cyan-400",    bg: "bg-cyan-500/10 border-cyan-500/30",     icon: <ArrowRight size={13} className="text-cyan-400"/> },
     { label: "Miles Covered",    value: isLive ? DAILY_SUMMARY.totalMilesCovered.toLocaleString() : currentNetworkSnap.totalMilesNetwork.toLocaleString(), unit: "mi", color: "text-violet-400", bg: "bg-violet-500/10 border-violet-500/30", icon: <Gauge size={13} className="text-violet-400"/> },
     { label: "Fuel Saved Today", value: isLive ? DAILY_SUMMARY.fuelSavedGallons.toLocaleString() : currentNetworkSnap.fuelSavedGallons.toLocaleString(), unit: "gal", color: "text-lime-400", bg: "bg-lime-500/10 border-lime-500/30", icon: <Fuel size={13} className="text-lime-400"/> },
-    { label: "Active Alarms",    value: isLive ? FLEET_SNAPSHOT.reduce((s,t) => s+t.activeAlarms,0) : currentNetworkSnap.activeAlarms, unit: "", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", icon: <AlertTriangle size={13} className="text-red-400"/> },
-    { label: "PTC Compliance",   value: isLive ? "99.2" : currentNetworkSnap.ptcCompliance.toFixed(1), unit: "%", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: <CheckCircle size={13} className="text-emerald-400"/> },
+    { label: "Active Alarms",    value: isLive ? FLEET_SNAPSHOT.reduce((s,t) => s+t.activeAlarms,0) : currentNetworkSnap.activeAlarms, unit: "", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", icon: <AlertTriangle size={13} className="text-red-400"/>, link: "/incidents" },
+    { label: "Safety Compliance", value: isLive ? "99.2" : currentNetworkSnap.ptcCompliance.toFixed(1), unit: "%", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: <CheckCircle size={13} className="text-emerald-400"/>, link: "/assets" },
+    { label: "LVVR Faults",      value: 3, unit: "", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", icon: <Eye size={13} className="text-red-400"/>, link: "/assets" },
   ];
 
   return (
@@ -332,10 +333,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ═══ FLEET KPI TILES (8 tiles) ═══ */}
-        <div className="grid grid-cols-8 gap-2">
-          {fleetKpis.map(kpi => (
-            <div key={kpi.label} className={`rounded border p-3 ${kpi.bg}`}>
+        {/* ═══ FLEET KPI TILES (9 tiles) ═══ */}
+        <div className="grid grid-cols-9 gap-2">
+          {fleetKpis.map((kpi: any) => (
+            <a key={kpi.label} href={kpi.link || '#'} className={`rounded border p-3 ${kpi.bg} block hover:opacity-90 transition-opacity`}>
               <div className="flex items-center gap-1.5 mb-1">
                 {kpi.icon}
                 <div className="text-[9px] text-muted-foreground uppercase tracking-wide leading-tight">{kpi.label}</div>
@@ -343,7 +344,7 @@ export default function Dashboard() {
               <div className={`text-lg font-bold mono ${kpi.color}`}>
                 {kpi.value}{kpi.unit && <span className="text-[10px] font-normal ml-0.5">{kpi.unit}</span>}
               </div>
-            </div>
+            </a>
           ))}
         </div>
 
@@ -582,35 +583,80 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* PTC state donut */}
+          {/* Safety System State */}
           <div className="col-span-5 bg-card border border-border rounded p-4">
-            <div className="text-sm font-semibold text-foreground mb-1" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>PTC State Distribution</div>
-            <div className="text-xs text-muted-foreground mb-3">Active trains · 19 total</div>
-            <div className="flex items-center gap-4">
-              <ResponsiveContainer width={120} height={120}>
-                <PieChart>
-                  <Pie data={[
-                    { name: 'Active',       value: 14, color: '#10B981' },
-                    { name: 'Degraded',     value: 3,  color: '#F59E0B' },
-                    { name: 'Suppressed',   value: 1,  color: '#EF4444' },
-                    { name: 'Not Equipped', value: 1,  color: '#6B7280' },
-                  ]} cx="50%" cy="50%" innerRadius={35} outerRadius={55} dataKey="value" paddingAngle={2}>
-                    {[{ name: 'Active', value: 14, color: '#10B981' },{ name: 'Degraded', value: 3, color: '#F59E0B' },{ name: 'Suppressed', value: 1, color: '#EF4444' },{ name: 'Not Equipped', value: 1, color: '#6B7280' }].map((e, i) => (
-                      <Cell key={i} fill={e.color}/>
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background:'#1f2937', border:'1px solid #374151', borderRadius:4, fontSize:11 }}/>
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="space-y-1.5 flex-1">
-                {[{ label: 'Active', val: 14, color: 'text-emerald-400' },{ label: 'Degraded', val: 3, color: 'text-amber-400' },{ label: 'Suppressed', val: 1, color: 'text-red-400' },{ label: 'Not Equipped', val: 1, color: 'text-muted-foreground' }].map(r => (
+            <div className="text-sm font-semibold text-foreground mb-0.5" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Safety System State</div>
+            <div className="text-xs text-muted-foreground mb-3">ETC-ATP · ETC-DAS · PTC · Active trains</div>
+            {/* System family breakdown */}
+            <div className="space-y-2 mb-3">
+              {[
+                { label: '🇨🇦 ETC-ATP', desc: 'Auto brake · WIU corridors', count: 8,  pct: 42, color: 'bg-cyan-500',    text: 'text-cyan-400' },
+                { label: '🇨🇦 ETC-DAS', desc: 'Advisory only · No WIUs',   count: 6,  pct: 32, color: 'bg-teal-500',    text: 'text-teal-400' },
+                { label: '🇺🇸 PTC',     desc: 'CSXT interop · US corridors', count: 5, pct: 26, color: 'bg-amber-500',   text: 'text-amber-400' },
+              ].map(r => (
+                <div key={r.label}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[10px] font-medium text-foreground">{r.label}</span>
+                    <span className={`text-[10px] font-bold mono ${r.text}`}>{r.count} trains</span>
+                  </div>
+                  <div className="text-[9px] text-muted-foreground mb-0.5">{r.desc}</div>
+                  <div className="h-1 bg-border rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${r.color}`} style={{ width: `${r.pct}%` }}/>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Operational state summary */}
+            <div className="border-t border-border pt-2">
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1.5">Operational State</div>
+              <div className="grid grid-cols-2 gap-1">
+                {[{ label: 'Active',       val: 14, color: 'text-emerald-400' },
+                  { label: 'Initializing', val: 2,  color: 'text-sky-400' },
+                  { label: 'Suppressed',   val: 2,  color: 'text-amber-400' },
+                  { label: 'Bypass',       val: 1,  color: 'text-red-400' }].map(r => (
                   <div key={r.label} className="flex items-center justify-between">
-                    <span className="text-[11px] text-muted-foreground">{r.label}</span>
-                    <span className={`text-[11px] font-bold mono ${r.color}`}>{r.val}</span>
+                    <span className="text-[10px] text-muted-foreground">{r.label}</span>
+                    <span className={`text-[10px] font-bold mono ${r.color}`}>{r.val}</span>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* ═══ SUBDIVISION ALARM HEATMAP ═══ */}
+        <div className="bg-card border border-border rounded p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <MapPin size={13} className="text-[#D22630]"/>
+            <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Subdivision Alarm Density</span>
+            <span className="text-[10px] text-muted-foreground">— Active alarms per subdivision · Last 24h</span>
+          </div>
+          <div className="grid grid-cols-8 gap-2">
+            {[
+              { sub: 'Kingston',  alarms: 14, wius: 188, safetySystem: 'ETC-ATP', trains: 4 },
+              { sub: 'Edson',     alarms: 18, wius: 0,   safetySystem: 'ETC-DAS', trains: 3 },
+              { sub: 'Rivers',    alarms: 9,  wius: 0,   safetySystem: 'ETC-DAS', trains: 2 },
+              { sub: 'Capreol',   alarms: 12, wius: 142, safetySystem: 'ETC-ATP', trains: 2 },
+              { sub: 'Bala',      alarms: 6,  wius: 97,  safetySystem: 'ETC-ATP', trains: 2 },
+              { sub: 'Ruel',      alarms: 4,  wius: 63,  safetySystem: 'ETC-ATP', trains: 1 },
+              { sub: 'Wainwright',alarms: 7,  wius: 0,   safetySystem: 'ETC-DAS', trains: 2 },
+              { sub: 'CSXT',      alarms: 3,  wius: 211, safetySystem: 'PTC',     trains: 3 },
+            ].map(s => {
+              const intensity = s.alarms > 15 ? 'bg-red-500/30 border-red-500/40' : s.alarms > 8 ? 'bg-amber-500/20 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/20';
+              const textColor = s.alarms > 15 ? 'text-red-400' : s.alarms > 8 ? 'text-amber-400' : 'text-emerald-400';
+              return (
+                <a key={s.sub} href="/wayside" className={`rounded border p-2.5 text-center hover:opacity-90 transition-opacity ${intensity}`}>
+                  <div className={`text-lg font-bold mono ${textColor}`}>{s.alarms}</div>
+                  <div className="text-[10px] font-medium text-foreground mt-0.5">{s.sub}</div>
+                  <div className="text-[9px] text-muted-foreground">{s.trains} trains</div>
+                  <div className={`text-[8px] mt-1 px-1 py-0.5 rounded ${
+                    s.safetySystem === 'ETC-ATP' ? 'bg-cyan-500/10 text-cyan-400' :
+                    s.safetySystem === 'ETC-DAS' ? 'bg-teal-500/10 text-teal-400' :
+                    'bg-amber-500/10 text-amber-400'
+                  }`}>{s.safetySystem}</div>
+                </a>
+              );
+            })}
           </div>
         </div>
 

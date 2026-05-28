@@ -833,8 +833,8 @@ function FleetContextPanel() {
       <div>
         <div className="text-[10px] text-muted-foreground uppercase tracking-widest mb-2">WILD ≥50 kips</div>
         <div className="space-y-1">
-          {wildAbove50.slice(0, 6).map(r => (
-            <div key={r.car} className="flex items-center justify-between">
+          {wildAbove50.slice(0, 6).map((r, i) => (
+            <div key={`${r.car}-${r.kips}-${i}`} className="flex items-center justify-between">
               <span className="font-mono text-xs text-foreground">{r.car}</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-muted-foreground">{r.kips}k</span>

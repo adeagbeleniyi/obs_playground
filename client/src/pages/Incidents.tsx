@@ -774,8 +774,8 @@ export default function Incidents() {
       <div className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Incidents</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">OT incidents · Car defect detections · Export reports</p>
+            <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Incident Management</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">OT system incidents · Car defect detections · Blast-radius context · Export reports</p>
           </div>
           <div className="text-xs text-muted-foreground">Showing {incidents.length + allCarDefects.length} total incidents</div>
         </div>
@@ -841,6 +841,7 @@ export default function Incidents() {
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Status</th>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Assigned</th>
                   <th className="text-right px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">MTTR</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Blast Radius</th>
                   <th className="text-left px-4 py-2.5 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Root Cause</th>
                 </tr>
               </thead>
@@ -909,6 +910,25 @@ export default function Incidents() {
                       <td className="px-4 py-3 text-muted-foreground text-[11px] max-w-[120px] truncate">{inc.assignedTo}</td>
                       <td className="px-4 py-3 text-right font-mono">
                         {inc.mttr ? <span className={`text-[11px] ${inc.mttr < 10 ? 'text-emerald-400' : inc.mttr < 30 ? 'text-amber-400' : 'text-red-400'}`}>{inc.mttr}m</span> : <span className="text-muted-foreground text-[11px]">—</span>}
+                      </td>
+                      {/* Blast Radius column */}
+                      <td className="px-4 py-3 min-w-[130px]">
+                        {hasRca && rca && rca.blastRadius && rca.blastRadius.length > 0 ? (
+                          <div className="flex flex-col gap-0.5">
+                            {rca.blastRadius.filter((b: {assetType: string; assetName: string}) => b.assetType === 'train').slice(0, 2).map((b: {assetType: string; assetName: string}, i: number) => (
+                              <span key={`t${i}`} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-900/30 text-cyan-300 border border-cyan-800/30 w-fit">🚂 {b.assetName}</span>
+                            ))}
+                            {rca.blastRadius.filter((b: {assetType: string; assetName: string}) => b.assetType === 'wiu').slice(0, 1).map((b: {assetType: string; assetName: string}, i: number) => (
+                              <span key={`w${i}`} className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-violet-900/30 text-violet-300 border border-violet-800/30 w-fit">📡 {b.assetName}</span>
+                            ))}
+                            {rca.blastRadius.filter((b: {assetType: string; assetName: string}) => b.assetType === 'system').slice(0, 1).map((b: {assetType: string; assetName: string}, i: number) => (
+                              <span key={`s${i}`} className="text-[9px] px-1.5 py-0.5 rounded bg-red-900/30 text-red-300 border border-red-800/30 w-fit">⚡ {b.assetName}</span>
+                            ))}
+                            {rca.blastRadius.length > 4 && (
+                              <span className="text-[9px] text-muted-foreground">+{rca.blastRadius.length - 4} more</span>
+                            )}
+                          </div>
+                        ) : <span className="text-[10px] text-muted-foreground">—</span>}
                       </td>
                       <td className="px-4 py-3 min-w-[180px]">
                         {hasRca && rca ? (

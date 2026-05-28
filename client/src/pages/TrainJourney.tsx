@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
 import { TRAINS, SUBDIVISIONS, type TrainRecord, type CarDetail, type WheelReading, type DetectorReading, type Health } from "@/lib/journeyData";
 import { getCarRecord, RAILROAD_LABELS, RAILROAD_COLORS, type CarRecord } from "@/lib/carRegistry";
@@ -1127,8 +1127,8 @@ export default function TrainJourney() {
                             { state: 'CUT OUT',      color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/30',   desc: 'PTC bypassed — requires supervisor override and incident log' },
                             { state: 'FAILED',       color: 'text-red-400',     bg: 'bg-red-500/10 border-red-500/30',       desc: 'Unrecoverable fault — mandatory stop, maintenance required' },
                           ].map((s, i, arr) => (
-                            <>
-                              <div key={s.state} className={`rounded border px-2 py-1.5 text-center min-w-[90px] ${
+                            <React.Fragment key={s.state}>
+                              <div className={`rounded border px-2 py-1.5 text-center min-w-[90px] ${
                                 (ptcData.overallStatus === 'NOMINAL' && s.state === 'ACTIVE') ||
                                 (ptcData.overallStatus === 'INITIALIZING' && s.state === 'INITIALIZING') ||
                                 (ptcData.overallStatus === 'DEGRADED' && s.state === 'CUT OUT') ||
@@ -1142,7 +1142,7 @@ export default function TrainJourney() {
                               {i < arr.length - 1 && i !== 3 && (
                                 <ChevronRight key={`arr-${i}`} size={10} className="text-zinc-600 flex-shrink-0"/>
                               )}
-                            </>
+                            </React.Fragment>
                           ))}
                         </div>
                         <div className="text-[9px] text-muted-foreground leading-relaxed p-2 rounded bg-border/20">

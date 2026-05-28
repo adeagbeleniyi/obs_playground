@@ -345,11 +345,11 @@ export default function WMSObservability() {
         <div className="flex items-center gap-3 mb-1">
           <Shield className="w-6 h-6 text-red-400" />
           <h1 className="text-2xl font-bold tracking-tight text-foreground" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-            WMS Observability
+            Network Security
           </h1>
         </div>
         <p className="text-muted-foreground text-sm ml-9">
-          Wayside Management System — IP Security, COBRA Agent Health, Cellular Modem Intelligence
+          WMS · IP Security · COBRA Agent Health · Cellular Modem Intelligence
         </p>
       </div>
 

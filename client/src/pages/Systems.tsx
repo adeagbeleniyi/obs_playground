@@ -44,8 +44,58 @@ export default function Systems() {
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>System Health</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            All OT systems organized by architecture layer — from edge hardware to cloud infrastructure
+            OWL · CARMA · I-ETMS · KES · GCP · BOS — organized by architecture layer from edge to cloud
           </p>
+        </div>
+
+        {/* Service Dependency Topology */}
+        <div className="bg-card/40 border border-border/50 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-4">
+            <Server size={14} className="text-[#D22630]" />
+            <span className="text-sm font-semibold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Service Dependency Topology</span>
+            <span className="text-xs text-muted-foreground ml-1">— Data flow from edge to cloud</span>
+          </div>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] text-purple-400 uppercase tracking-widest font-bold mb-1 flex items-center gap-1">● Edge</div>
+              {['I-ETMS (Loco)', 'OWL Agent', 'LVVR Agent', 'WIU / COBRA', 'GPS / CDU'].map(n => (
+                <div key={n} className="bg-purple-500/10 border border-purple-500/20 rounded px-2 py-1 text-[10px] text-purple-300 font-mono flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-purple-400 flex-shrink-0" />{n}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] text-sky-400 uppercase tracking-widest font-bold mb-1 flex items-center gap-1">● Back-Office</div>
+              {['BOS Server', 'CARMA', 'KES Server', 'PDS Server', 'ITCM Gateway'].map(n => (
+                <div key={n} className="bg-sky-500/10 border border-sky-500/20 rounded px-2 py-1 text-[10px] text-sky-300 font-mono flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-sky-400 flex-shrink-0" />{n}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] text-emerald-400 uppercase tracking-widest font-bold mb-1 flex items-center gap-1">● Cloud (GCP)</div>
+              {['GCP Pub/Sub', 'BigQuery', 'Cloud Storage', 'Dynatrace SaaS', 'ServiceNow'].map(n => (
+                <div key={n} className="bg-emerald-500/10 border border-emerald-500/20 rounded px-2 py-1 text-[10px] text-emerald-300 font-mono flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-emerald-400 flex-shrink-0" />{n}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="text-[9px] text-amber-400 uppercase tracking-widest font-bold mb-1 flex items-center gap-1">● Transport</div>
+              {['220MHz Radio', 'ITCM Cell', 'Satellite Backup', 'Wayside LAN', 'VPN Tunnel'].map(n => (
+                <div key={n} className="bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1 text-[10px] text-amber-300 font-mono flex items-center gap-1">
+                  <span className="w-1 h-1 rounded-full bg-amber-400 flex-shrink-0" />{n}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-border/40 flex flex-wrap items-center gap-4 text-[10px] text-muted-foreground">
+            <span><span className="text-purple-400">Edge</span> → <span className="text-sky-400">Back-Office</span>: EMP messages over 220MHz/ITCM</span>
+            <span>·</span>
+            <span><span className="text-sky-400">Back-Office</span> → <span className="text-emerald-400">Cloud</span>: telemetry, audit, ML pipelines</span>
+            <span>·</span>
+            <span><span className="text-emerald-400">Cloud</span> → NOC: dashboards, alerts, reports via SPOG</span>
+          </div>
         </div>
 
         {/* Architecture Layer Legend */}

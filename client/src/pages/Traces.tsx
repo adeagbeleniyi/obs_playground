@@ -8,177 +8,282 @@ import {
   BarChart2, AlertCircle, RefreshCw, Download
 } from "lucide-react";
 
-// ─── EMP Chart Data ──────────────────────────────────────────────────────────
-// Simulated 5-min bucket time-series matching the Clearblade dashboard screenshots
-// EMP-1005: Config Version List (loco → BOS), EMP-2005: Config Version Response (BOS → loco)
-// EMP-2080: Authority Request (loco → BOS)
-const generateEMPTimeSeries = () => {
+// ─── EMP Message Catalog (S-9361.V3.1) ──────────────────────────────────────
+// Each entry: id = short code, label = display, name = description, dir = direction
+const EMP_CATALOG = [
+  // Initialization sequence
+  { id: '02000', label: '02000', name: 'Verify Employee Info Request', dir: 'Loco→BOS', phase: 'Crew Auth', color: '#60a5fa', baseRate: 4, variance: 2 },
+  { id: '01000', label: '01000', name: 'Verify Employee Info Response', dir: 'BOS→Loco', phase: 'Crew Auth', color: '#93c5fd', baseRate: 4, variance: 2 },
+  { id: '02001', label: '02001', name: 'Request Train ID List', dir: 'Loco→BOS', phase: 'Train ID', color: '#a78bfa', baseRate: 3, variance: 1 },
+  { id: '01001', label: '01001', name: 'Train ID List', dir: 'BOS→Loco', phase: 'Train ID', color: '#c4b5fd', baseRate: 3, variance: 1 },
+  { id: '02003', label: '02003', name: 'Selected Train ID', dir: 'Loco→BOS', phase: 'Train ID', color: '#8b5cf6', baseRate: 3, variance: 1 },
+  { id: '01004', label: '01004', name: 'Confirm Selected Train ID', dir: 'BOS→Loco', phase: 'Train ID', color: '#7c3aed', baseRate: 3, variance: 1 },
+  { id: '02005', label: '02005', name: 'Config Version List Request', dir: 'Loco→BOS', phase: 'Configuration', color: '#facc15', baseRate: 5, variance: 3 },
+  { id: '01005', label: '01005', name: 'Config Version List', dir: 'BOS→Loco', phase: 'Configuration', color: '#fde047', baseRate: 5, variance: 3 },
+  { id: '02007', label: '02007', name: 'Request Subdivision/District List', dir: 'Loco→BOS', phase: 'Configuration', color: '#f59e0b', baseRate: 3, variance: 1 },
+  { id: '01007', label: '01007', name: 'Train Subdivision/District List', dir: 'BOS→Loco', phase: 'Configuration', color: '#fbbf24', baseRate: 3, variance: 1 },
+  { id: '02010', label: '02010', name: 'Locomotive System State', dir: 'Loco→BOS', phase: 'System State', color: '#fb923c', baseRate: 4, variance: 2 },
+  { id: '01010', label: '01010', name: 'Command/Confirm Loco State', dir: 'BOS→Loco', phase: 'System State', color: '#fdba74', baseRate: 4, variance: 2 },
+  { id: '02011', label: '02011', name: 'Departure Test Report', dir: 'Loco→BOS', phase: 'Departure Test', color: '#f97316', baseRate: 3, variance: 1 },
+  { id: '01011', label: '01011', name: 'Confirm Departure Test', dir: 'BOS→Loco', phase: 'Departure Test', color: '#ea580c', baseRate: 3, variance: 1 },
+  { id: '02020', label: '02020', name: 'Poll Registration', dir: 'Loco→BOS', phase: 'Poll Reg.', color: '#34d399', baseRate: 4, variance: 2 },
+  { id: '01020', label: '01020', name: 'Confirm Poll Registration', dir: 'BOS→Loco', phase: 'Poll Reg.', color: '#6ee7b7', baseRate: 4, variance: 2 },
+  { id: '02030', label: '02030', name: 'Request Train Consist', dir: 'Loco→BOS', phase: 'Consist', color: '#f472b6', baseRate: 5, variance: 2 },
+  { id: '01030', label: '01030', name: 'Train Consist', dir: 'BOS→Loco', phase: 'Consist', color: '#f9a8d4', baseRate: 5, variance: 2 },
+  { id: '02032', label: '02032', name: 'Onboard Train Consist', dir: 'Loco→BOS', phase: 'Consist', color: '#ec4899', baseRate: 5, variance: 2 },
+  { id: '01033', label: '01033', name: 'Confirm Onboard Consist', dir: 'BOS→Loco', phase: 'Consist', color: '#db2777', baseRate: 5, variance: 2 },
+  // Bulletins
+  { id: '01041', label: '01041', name: 'Bulletin Dataset', dir: 'BOS→Loco', phase: 'Bulletins', color: '#e879f9', baseRate: 6, variance: 4 },
+  { id: '02042', label: '02042', name: 'Confirm Bulletin Dataset', dir: 'Loco→BOS', phase: 'Bulletins', color: '#d946ef', baseRate: 6, variance: 4 },
+  // Movement Authority
+  { id: '02050', label: '02050', name: 'Crew Authority Request', dir: 'Loco→BOS', phase: 'Authority', color: '#34d399', baseRate: 35, variance: 12 },
+  { id: '01051', label: '01051', name: 'Movement Authority Dataset', dir: 'BOS→Loco', phase: 'Authority', color: '#10b981', baseRate: 35, variance: 12 },
+  { id: '02052', label: '02052', name: 'Confirm Movement Authority', dir: 'Loco→BOS', phase: 'Authority', color: '#059669', baseRate: 34, variance: 11 },
+  { id: '01053', label: '01053', name: 'Movement Authority Void', dir: 'BOS→Loco', phase: 'Authority', color: '#ef4444', baseRate: 2, variance: 2 },
+  // Polling
+  { id: '01021', label: '01021', name: 'Office Segment Poll', dir: 'BOS→Loco', phase: 'Polling', color: '#38bdf8', baseRate: 40, variance: 5 },
+  { id: '02021', label: '02021', name: 'Poll Response', dir: 'Loco→BOS', phase: 'Polling', color: '#0ea5e9', baseRate: 38, variance: 6 },
+  // Position
+  { id: '02080', label: '02080', name: 'Locomotive Position Report', dir: 'Loco→BOS', phase: 'Position', color: '#22d3ee', baseRate: 50, variance: 8 },
+  // Safety events
+  { id: '02082', label: '02082', name: 'PTC Interaction', dir: 'Loco→BOS', phase: 'Safety', color: '#f87171', baseRate: 2, variance: 2 },
+  { id: '02083', label: '02083', name: 'Enforcement Warning/Braking', dir: 'Loco→BOS', phase: 'Safety', color: '#dc2626', baseRate: 1, variance: 1 },
+  { id: '02084', label: '02084', name: 'Emergency Brake Application', dir: 'Loco→BOS', phase: 'Safety', color: '#b91c1c', baseRate: 0, variance: 1 },
+  { id: '02085', label: '02085', name: 'Train Handling Exception', dir: 'Loco→BOS', phase: 'Safety', color: '#fca5a5', baseRate: 1, variance: 1 },
+  // Violations
+  { id: '02070', label: '02070', name: 'Onboard Violation Report', dir: 'Loco→BOS', phase: 'Violations', color: '#fb923c', baseRate: 1, variance: 1 },
+  { id: '02072', label: '02072', name: 'Onboard Violation Cleared', dir: 'Loco→BOS', phase: 'Violations', color: '#fdba74', baseRate: 1, variance: 1 },
+  // Faults
+  { id: '02081', label: '02081', name: 'Loco Fault Summary Report', dir: 'Loco→BOS', phase: 'Faults', color: '#a3a3a3', baseRate: 2, variance: 2 },
+  { id: '02087', label: '02087', name: 'Locomotive Fault Report', dir: 'Loco→BOS', phase: 'Faults', color: '#737373', baseRate: 1, variance: 1 },
+  // File Transfer
+  { id: '02100', label: '02100', name: 'Client Fileset List', dir: 'Loco→BOS', phase: 'File Transfer', color: '#818cf8', baseRate: 3, variance: 2 },
+  { id: '01100', label: '01100', name: 'Fileset List', dir: 'BOS→Loco', phase: 'File Transfer', color: '#6366f1', baseRate: 3, variance: 2 },
+  // KES
+  { id: '101', label: '101', name: 'BL-OPK Key Exchange Request', dir: 'Loco→KES', phase: 'KES', color: '#c084fc', baseRate: 2, variance: 1 },
+  { id: '102', label: '102', name: 'BL-OPK Key Exchange Response', dir: 'KES→Loco', phase: 'KES', color: '#a855f7', baseRate: 2, variance: 1 },
+] as const;
+
+type EmpCatalogEntry = typeof EMP_CATALOG[number];
+
+// Generate 5-min bucket time-series for a given date range and list of message IDs
+const generateEMPSeries = (startDate: Date, hours: number, msgIds: string[]) => {
+  const buckets = Math.min(hours * 12, 288); // max 24h = 288 buckets
   const labels: string[] = [];
-  const emp1005: number[] = [];
-  const emp2005: number[] = [];
-  const emp2080: number[] = [];
-  const base = new Date('2025-05-30T16:00:00Z');
-  for (let i = 0; i < 48; i++) {
-    const t = new Date(base.getTime() + i * 5 * 60 * 1000);
+  const series: Record<string, number[]> = {};
+  msgIds.forEach(id => { series[id] = []; });
+  for (let i = 0; i < buckets; i++) {
+    const t = new Date(startDate.getTime() + i * 5 * 60 * 1000);
     labels.push(t.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false }));
-    // EMP-1005/2005: spiky pattern 1-14 matching screenshot
-    const spike = Math.random() < 0.15 ? Math.floor(Math.random() * 6) + 8 : 0;
-    emp1005.push(Math.floor(Math.random() * 7) + 2 + spike);
-    emp2005.push(Math.floor(Math.random() * 6) + 2 + (spike > 0 ? spike - 1 : 0));
-    // EMP-2080: smoother 30-60 range matching screenshot
-    emp2080.push(Math.floor(Math.random() * 20) + 30 + (Math.random() < 0.1 ? 15 : 0));
+    msgIds.forEach(id => {
+      const entry = EMP_CATALOG.find(e => e.id === id);
+      if (!entry) { series[id].push(0); return; }
+      const spike = Math.random() < 0.12 ? Math.floor(Math.random() * entry.variance * 2) + entry.variance : 0;
+      const nightDip = (t.getHours() >= 1 && t.getHours() <= 5) ? 0.4 : 1;
+      const rushBoost = (t.getHours() >= 6 && t.getHours() <= 9) || (t.getHours() >= 15 && t.getHours() <= 18) ? 1.3 : 1;
+      const base = Math.max(0, Math.floor((entry.baseRate * nightDip * rushBoost) + (Math.random() * entry.variance - entry.variance / 2) + spike));
+      series[id].push(base);
+    });
   }
-  return { labels, emp1005, emp2005, emp2080 };
+  return { labels, series };
 };
 
-const EMP_DATA = generateEMPTimeSeries();
+// Preset date ranges
+type DatePreset = 'last4h' | 'last12h' | 'today' | 'yesterday' | 'last7d';
+const DATE_PRESETS: { id: DatePreset; label: string; hours: number }[] = [
+  { id: 'last4h',    label: 'Last 4 Hours',  hours: 4 },
+  { id: 'last12h',   label: 'Last 12 Hours', hours: 12 },
+  { id: 'today',     label: 'Today',         hours: 24 },
+  { id: 'yesterday', label: 'Yesterday',     hours: 24 },
+  { id: 'last7d',    label: 'Last 7 Days',   hours: 168 },
+];
 
-// ─── EMP Charts Renderer Component ───────────────────────────────────────────
+const CHART_COLORS = ['#34d399','#facc15','#60a5fa','#f472b6','#fb923c','#a78bfa','#22d3ee','#f87171','#4ade80','#e879f9'];
+
+// ─── EMP Charts Component ─────────────────────────────────────────────────────
 function EMPChartsRenderer() {
-  useEffect(() => {
-    let dualChart: any = null;
-    let singleChart: any = null;
+  const [selectedMsgs, setSelectedMsgs] = useState<string[]>(['02050', '01051', '02080']);
+  const [datePreset, setDatePreset] = useState<DatePreset>('today');
+  const [customDate, setCustomDate] = useState('');
+  const [compareMsg, setCompareMsg] = useState<string>('01021');
+  const [showCompare, setShowCompare] = useState(false);
 
-    const buildCharts = () => {
+  const chartData = useMemo(() => {
+    const preset = DATE_PRESETS.find(p => p.id === datePreset)!;
+    let startDate: Date;
+    if (datePreset === 'yesterday') {
+      startDate = new Date(); startDate.setDate(startDate.getDate() - 1); startDate.setHours(0,0,0,0);
+    } else if (datePreset === 'last7d') {
+      startDate = new Date(); startDate.setDate(startDate.getDate() - 7); startDate.setHours(0,0,0,0);
+    } else if (customDate) {
+      startDate = new Date(customDate + 'T00:00:00');
+    } else {
+      startDate = new Date(Date.now() - preset.hours * 3600 * 1000);
+    }
+    const allIds = Array.from(new Set([...selectedMsgs, ...(showCompare ? [compareMsg] : [])]));
+    return generateEMPSeries(startDate, preset.hours, allIds);
+  }, [selectedMsgs, datePreset, customDate, compareMsg, showCompare]);
+
+  useEffect(() => {
+    let chart: any = null;
+    const canvasId = 'empMultiChart';
+
+    const buildChart = () => {
       const Chart = (window as any).Chart;
       if (!Chart) return;
+      const canvas = document.getElementById(canvasId) as HTMLCanvasElement | null;
+      if (!canvas) return;
+      const existing = Chart.getChart(canvas);
+      if (existing) existing.destroy();
 
-      const dualCanvas = document.getElementById('empDualChart') as HTMLCanvasElement | null;
-      const singleCanvas = document.getElementById('emp2080Chart') as HTMLCanvasElement | null;
+      const allIds = Array.from(new Set([...selectedMsgs, ...(showCompare ? [compareMsg] : [])]));
+      const datasets = allIds.map((id, idx) => {
+        const entry = EMP_CATALOG.find(e => e.id === id);
+        const color = entry?.color ?? CHART_COLORS[idx % CHART_COLORS.length];
+        return {
+          label: `${id} — ${entry?.name ?? id}`,
+          data: chartData.series[id] ?? [],
+          borderColor: color,
+          backgroundColor: color + '18',
+          borderWidth: id === compareMsg && showCompare ? 2 : 1.5,
+          borderDash: id === compareMsg && showCompare ? [4, 3] : [],
+          pointRadius: 0,
+          tension: 0.3,
+          fill: false,
+        };
+      });
 
-      if (dualCanvas) {
-        // Destroy existing chart if any
-        const existing = Chart.getChart(dualCanvas);
-        if (existing) existing.destroy();
-        dualChart = new Chart(dualCanvas, {
-          type: 'line',
-          data: {
-            labels: EMP_DATA.labels,
-            datasets: [
-              {
-                label: 'EMP-2005',
-                data: EMP_DATA.emp2005,
-                borderColor: '#34d399',
-                backgroundColor: 'rgba(52,211,153,0.08)',
-                borderWidth: 1.5,
-                pointRadius: 0,
-                tension: 0.3,
-                fill: false,
-              },
-              {
-                label: 'EMP-1005',
-                data: EMP_DATA.emp1005,
-                borderColor: '#facc15',
-                backgroundColor: 'rgba(250,204,21,0.08)',
-                borderWidth: 1.5,
-                pointRadius: 0,
-                tension: 0.3,
-                fill: false,
-              },
-            ],
+      chart = new Chart(canvas, {
+        type: 'line',
+        data: { labels: chartData.labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false, animation: false,
+          plugins: {
+            legend: { display: true, position: 'bottom', labels: { color: '#94a3b8', font: { size: 9 }, boxWidth: 12, padding: 8 } },
+            tooltip: { mode: 'index', intersect: false, backgroundColor: '#1e293b', titleColor: '#94a3b8', bodyColor: '#e2e8f0', borderColor: '#334155', borderWidth: 1 },
           },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                mode: 'index',
-                intersect: false,
-                backgroundColor: '#1e293b',
-                titleColor: '#94a3b8',
-                bodyColor: '#e2e8f0',
-                borderColor: '#334155',
-                borderWidth: 1,
-              },
-            },
-            scales: {
-              x: {
-                ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
-                grid: { color: 'rgba(255,255,255,0.04)' },
-              },
-              y: {
-                min: 0,
-                max: 16,
-                ticks: { color: '#64748b', font: { size: 9 }, stepSize: 4 },
-                grid: { color: 'rgba(255,255,255,0.04)' },
-              },
-            },
+          scales: {
+            x: { ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 10 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+            y: { min: 0, ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.04)' } },
           },
-        });
-      }
-
-      if (singleCanvas) {
-        const existing2 = Chart.getChart(singleCanvas);
-        if (existing2) existing2.destroy();
-        singleChart = new Chart(singleCanvas, {
-          type: 'line',
-          data: {
-            labels: EMP_DATA.labels,
-            datasets: [
-              {
-                label: 'EMP-2080',
-                data: EMP_DATA.emp2080,
-                borderColor: '#34d399',
-                backgroundColor: 'rgba(52,211,153,0.08)',
-                borderWidth: 1.5,
-                pointRadius: 0,
-                tension: 0.3,
-                fill: true,
-              },
-            ],
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                mode: 'index',
-                intersect: false,
-                backgroundColor: '#1e293b',
-                titleColor: '#94a3b8',
-                bodyColor: '#e2e8f0',
-                borderColor: '#334155',
-                borderWidth: 1,
-              },
-            },
-            scales: {
-              x: {
-                ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 8 },
-                grid: { color: 'rgba(255,255,255,0.04)' },
-              },
-              y: {
-                min: 0,
-                max: 70,
-                ticks: { color: '#64748b', font: { size: 9 }, stepSize: 10 },
-                grid: { color: 'rgba(255,255,255,0.04)' },
-              },
-            },
-          },
-        });
-      }
+        },
+      });
     };
 
-    // Load Chart.js from CDN if not already loaded
     if (!(window as any).Chart) {
       const script = document.createElement('script');
       script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-      script.onload = buildCharts;
+      script.onload = buildChart;
       document.head.appendChild(script);
     } else {
-      buildCharts();
+      buildChart();
     }
+    return () => { if (chart) chart.destroy(); };
+  }, [chartData, selectedMsgs, compareMsg, showCompare]);
 
-    return () => {
-      if (dualChart) dualChart.destroy();
-      if (singleChart) singleChart.destroy();
-    };
+  // Group catalog by phase for the selector
+  const phases = useMemo(() => {
+    const map = new Map<string, EmpCatalogEntry[]>();
+    EMP_CATALOG.forEach(e => {
+      if (!map.has(e.phase)) map.set(e.phase, []);
+      map.get(e.phase)!.push(e);
+    });
+    return map;
   }, []);
 
-  return null;
+  const toggleMsg = (id: string) => {
+    setSelectedMsgs(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {/* Controls row */}
+      <div className="flex flex-wrap items-center gap-2 p-3 rounded border border-border bg-card">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest flex-shrink-0">Date Range</span>
+        {DATE_PRESETS.map(p => (
+          <button key={p.id} onClick={() => { setDatePreset(p.id); setCustomDate(''); }}
+            className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+              datePreset === p.id && !customDate
+                ? 'bg-[#D22630]/20 border-[#D22630]/40 text-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+            }`}>{p.label}</button>
+        ))}
+        <input type="date" value={customDate}
+          onChange={e => { setCustomDate(e.target.value); setDatePreset('today'); }}
+          className="text-[10px] px-2 py-1 rounded border border-border bg-muted text-foreground focus:outline-none focus:border-foreground/30" />
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] text-muted-foreground">Compare:</span>
+          <button onClick={() => setShowCompare(v => !v)}
+            className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+              showCompare ? 'bg-sky-500/20 border-sky-500/40 text-sky-300' : 'border-border text-muted-foreground'
+            }`}>{showCompare ? 'On' : 'Off'}</button>
+          {showCompare && (
+            <select value={compareMsg} onChange={e => setCompareMsg(e.target.value)}
+              className="text-[10px] px-2 py-1 rounded border border-border bg-muted text-foreground focus:outline-none">
+              {EMP_CATALOG.map(e => (
+                <option key={e.id} value={e.id}>{e.id} — {e.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      </div>
+
+      {/* Message selector */}
+      <div className="p-3 rounded border border-border bg-card space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Message Selector — S-9361.V3.1</span>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSelectedMsgs(EMP_CATALOG.map(e => e.id) as unknown as string[])}
+              className="text-[9px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground">All</button>
+            <button onClick={() => setSelectedMsgs([])}
+              className="text-[9px] px-2 py-0.5 rounded border border-border text-muted-foreground hover:text-foreground">None</button>
+            <span className="text-[10px] text-muted-foreground">{selectedMsgs.length} selected</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {Array.from(phases.entries()).map(([phase, msgs]) => (
+            <div key={phase}>
+              <div className="text-[9px] text-muted-foreground uppercase tracking-widest mb-1">{phase}</div>
+              <div className="flex flex-wrap gap-1">
+                {msgs.map(e => (
+                  <button key={e.id} onClick={() => toggleMsg(e.id)}
+                    className={`text-[9px] px-2 py-0.5 rounded border transition-colors ${
+                      selectedMsgs.includes(e.id)
+                        ? 'border-transparent text-slate-900 font-semibold'
+                        : 'border-border text-muted-foreground hover:text-foreground'
+                    }`}
+                    style={selectedMsgs.includes(e.id) ? { backgroundColor: e.color, borderColor: e.color } : {}}
+                    title={`${e.id} — ${e.name} (${e.dir})`}>
+                    {e.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="rounded border border-border bg-card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <div className="text-[11px] font-semibold text-foreground">EMP Message Volume — {DATE_PRESETS.find(p => p.id === datePreset)?.label ?? 'Custom'}</div>
+            <div className="text-[10px] text-muted-foreground">5-minute rolling windows · {selectedMsgs.length} message type{selectedMsgs.length !== 1 ? 's' : ''} selected</div>
+          </div>
+          <div className="text-[9px] text-muted-foreground font-mono">S-9361.V3.1 EMP Protocol</div>
+        </div>
+        {selectedMsgs.length === 0 ? (
+          <div className="flex items-center justify-center" style={{ height: 200 }}>
+            <span className="text-xs text-muted-foreground">Select at least one message type above to view the chart</span>
+          </div>
+        ) : (
+          <div style={{ height: 220 }}><canvas id="empMultiChart"></canvas></div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -553,7 +658,7 @@ export default function Traces() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              Synthetic PTC Traces
+              EMP Message Traces
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               End-to-end EMP message delivery tracing — Locomotive → 220MHz → COBRA → BOS
@@ -620,40 +725,7 @@ export default function Traces() {
           ))}
         </div>
 
-        {/* EMP Message Volume Charts */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* EMP-1005 / EMP-2005 Dual-Line Chart */}
-          <div className="rounded border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[11px] font-semibold text-foreground">Dashboard EMP 1005 / 2005</div>
-                <div className="text-[10px] text-muted-foreground">Configuration Version List — message volume over time</div>
-              </div>
-              <div className="flex items-center gap-3 text-[10px]">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2005</span>
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-yellow-400"></span> EMP-1005</span>
-              </div>
-            </div>
-            <div style={{ height: 160 }}>
-              <canvas id="empDualChart"></canvas>
-            </div>
-          </div>
-          {/* EMP-2080 Single-Line Chart */}
-          <div className="rounded border border-border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <div className="text-[11px] font-semibold text-foreground">By EMP — EMP 2080</div>
-                <div className="text-[10px] text-muted-foreground">Authority Request message rate (msgs / 5-min window)</div>
-              </div>
-              <div className="flex items-center gap-3 text-[10px]">
-                <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-emerald-400"></span> EMP-2080</span>
-              </div>
-            </div>
-            <div style={{ height: 160 }}>
-              <canvas id="emp2080Chart"></canvas>
-            </div>
-          </div>
-        </div>
+        {/* EMP Message Volume Charts — multi-message selector + date range */}
         <EMPChartsRenderer />
 
         {/* Search & Filter Bar */}
