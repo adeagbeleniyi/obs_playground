@@ -471,3 +471,173 @@ export function getFleetAtTime(hour: number): HistoricalTrainSnapshot[] {
 
 // The available historical time points (for the scrubber)
 export const HISTORICAL_TIME_POINTS = ["06:00", "08:00", "10:00", "12:00", "14:00 (LIVE)"] as const;
+
+// ─── 30-Day Historical Data Generator ────────────────────────────────────────
+//
+// Generates plausible fleet snapshots for any date in the past 30 days.
+// Each date gets the same 4 time-point structure (06:00/08:00/10:00/12:00)
+// but with per-day variation seeded from the date itself so results are
+// stable across renders (same date always returns the same data).
+
+/** Lightweight seeded pseudo-random (mulberry32) */
+function seededRng(seed: number) {
+  let s = seed | 0;
+  return () => {
+    s = Math.imul(s ^ (s >>> 15), s | 1);
+    s ^= s + Math.imul(s ^ (s >>> 7), s | 61);
+    return ((s ^ (s >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function dateToSeed(date: Date): number {
+  return date.getFullYear() * 10000 + (date.getMonth() + 1) * 100 + date.getDate();
+}
+
+// Canonical train roster — same trains appear every day, just at different positions
+const TRAIN_ROSTER = [
+  { id: "CN-Q11451-05", symbol: "Q11451-05", origin: "MacMillan Yard", destination: "Taschereau Yard", subdivision: "Kingston",      direction: "EAST" as const, baseMp: 88,  locos: ["CN 3864", "CN 3901"],             cars: 85,  weight: 18650, length: 5420, hasDPU: false, foreignCars: 8,  crew: "CRW-3301" },
+  { id: "CN-M30151-05", symbol: "M30151-05", origin: "Symington Yard", destination: "Walker Yard",      subdivision: "Rivers",        direction: "WEST" as const, baseMp: 44,  locos: ["CN 5501", "CN 5488"],             cars: 113, weight: 14290, length: 7100, hasDPU: true,  foreignCars: 14, crew: "CRW-2233" },
+  { id: "CN-L50251-05", symbol: "L50251-05", origin: "Walker Yard",    destination: "MacMillan Yard",   subdivision: "Edson",         direction: "EAST" as const, baseMp: 112, locos: ["CN 4102", "CN 4088", "CN 4099"], cars: 148, weight: 24100, length: 9200, hasDPU: true,  foreignCars: 0,  crew: "CRW-1122" },
+  { id: "CN-H22351-05", symbol: "H22351-05", origin: "Walker Yard",    destination: "Biggar, SK",       subdivision: "Wainwright",    direction: "EAST" as const, baseMp: 122, locos: ["CN 8812", "CN 8801"],             cars: 88,  weight: 17600, length: 5800, hasDPU: false, foreignCars: 4,  crew: "CRW-5577" },
+  { id: "CN-E66251-05", symbol: "E66251-05", origin: "MacMillan Yard", destination: "Walker Yard",      subdivision: "Edson",         direction: "WEST" as const, baseMp: 80,  locos: ["CN 4412", "CN 4388", "CN 4401"], cars: 152, weight: 26400, length: 9800, hasDPU: true,  foreignCars: 0,  crew: "CRW-6612" },
+  { id: "CN-T22151-05", symbol: "T22151-05", origin: "Gordon Yard",    destination: "Symington Yard",   subdivision: "Ruel",          direction: "EAST" as const, baseMp: 178, locos: ["CN 3412", "CN 3398"],             cars: 78,  weight: 12400, length: 5100, hasDPU: false, foreignCars: 4,  crew: "CRW-7788" },
+  { id: "CN-D55151-05", symbol: "D55151-05", origin: "MacMillan Yard", destination: "Taschereau Yard",  subdivision: "Kingston",      direction: "EAST" as const, baseMp: 144, locos: ["CN 3412", "CN 3398"],             cars: 92,  weight: 18400, length: 5900, hasDPU: false, foreignCars: 12, crew: "CRW-1144" },
+  { id: "CN-A41451-05", symbol: "A41451-05", origin: "Taschereau Yard",destination: "Gordon Yard",      subdivision: "Montréal",      direction: "EAST" as const, baseMp: 22,  locos: ["CN 2201", "CN 2188"],             cars: 94,  weight: 11080, length: 6100, hasDPU: false, foreignCars: 0,  crew: "CRW-5566" },
+  { id: "CN-R33451-05", symbol: "R33451-05", origin: "Gordon Yard",    destination: "Taschereau Yard",  subdivision: "Moncton",       direction: "WEST" as const, baseMp: 44,  locos: ["CN 2201", "CN 2188"],             cars: 66,  weight: 13200, length: 4400, hasDPU: false, foreignCars: 8,  crew: "CRW-4488" },
+  { id: "CN-G87351-05", symbol: "G87351-05", origin: "MacMillan Yard", destination: "Capreol",          subdivision: "Bala",          direction: "NORTH" as const,baseMp: 44,  locos: ["CN 7788"],                        cars: 42,  weight: 5800,  length: 2900, hasDPU: false, foreignCars: 2,  crew: "CRW-4455" },
+  { id: "CN-F77251-05", symbol: "F77251-05", origin: "Walker Yard",    destination: "Symington Yard",   subdivision: "Rivers",        direction: "EAST" as const, baseMp: 340, locos: ["CN 6612", "CN 6588"],             cars: 96,  weight: 15800, length: 6400, hasDPU: false, foreignCars: 12, crew: "CRW-6644" },
+  { id: "CN-V22451-05", symbol: "V22451-05", origin: "Prince George Yard", destination: "Walker Yard",  subdivision: "Prince George", direction: "SOUTH" as const,baseMp: 88,  locos: ["CN 4812", "CN 4799"],             cars: 48,  weight: 9600,  length: 3200, hasDPU: false, foreignCars: 0,  crew: "CRW-3388" },
+  { id: "CN-K88151-05", symbol: "K88151-05", origin: "MacMillan Yard", destination: "Walker Yard",      subdivision: "Kingston",      direction: "WEST" as const, baseMp: 22,  locos: ["CN 3864", "CN 3901", "CN 3888"], cars: 122, weight: 21400, length: 7800, hasDPU: true,  foreignCars: 22, crew: "CRW-9900" },
+  { id: "CN-W44251-05", symbol: "W44251-05", origin: "MacMillan Yard", destination: "Capreol Yard",     subdivision: "MacMillan",     direction: "NORTH" as const,baseMp: 22,  locos: ["CN 7712", "CN 7699"],             cars: 76,  weight: 15200, length: 4900, hasDPU: false, foreignCars: 0,  crew: "CRW-9900" },
+];
+
+const PTC_STATES: TrainSnapshot["ptcState"][] = ["ACTIVE", "ACTIVE", "ACTIVE", "SUPPRESSED", "BYPASS", "INITIALIZING"];
+const DETECTOR_RESULTS: TrainSnapshot["lastDetectorResult"][] = ["CLEAR", "CLEAR", "CLEAR", "CLEAR", "WARNING", "ALARM"];
+const STOP_REASONS: StopReason[] = ["SIGNAL_HOLD", "MEET_PASS", "CREW_CHANGE", "SLOW_ORDER", "PTC_ENFORCEMENT"];
+
+function generateSnapshotForDate(date: Date, hour: number): HistoricalTrainSnapshot[] {
+  const rng = seededRng(dateToSeed(date) * 100 + hour);
+
+  // Decide how many trains are active this day (10-14)
+  const trainCount = 10 + Math.floor(rng() * 5);
+  const roster = [...TRAIN_ROSTER].sort(() => rng() - 0.5).slice(0, trainCount);
+
+  return roster.map(t => {
+    const r = rng;
+    // Vary milepost ±30% from base, seeded by date+hour
+    const mpVariance = (r() - 0.5) * 0.6;
+    const mp = Math.max(1, Math.round(t.baseMp * (1 + mpVariance) * (hour / 12)));
+    const speed = Math.round(30 + r() * 35);
+    const speedLimit = 60;
+    const ptcState = PTC_STATES[Math.floor(r() * PTC_STATES.length)];
+    const detectorResult = DETECTOR_RESULTS[Math.floor(r() * DETECTOR_RESULTS.length)];
+    const alarms = detectorResult === "ALARM" ? 2 : detectorResult === "WARNING" ? 1 : 0;
+    const isStopped = r() < 0.15; // 15% chance stopped
+    const isInYard = hour <= 6 && r() < 0.35; // more in yard early morning
+    const state: TrainState = isInYard
+      ? "IN_YARD_PRE_DEPARTURE"
+      : isStopped
+      ? "EN_ROUTE_STOPPED"
+      : "EN_ROUTE_MOVING";
+
+    const hosBase = 480 - hour * 20;
+    const hosRemaining = Math.max(0, Math.round(hosBase + (r() - 0.5) * 60));
+    const fuelSaved = Math.round(mp * 0.6 * r());
+    const milesThisTrip = mp;
+
+    // Approximate lat/lon based on subdivision (rough centroids)
+    const subLatLon: Record<string, [number, number]> = {
+      "Kingston":       [44.0 + r() * 0.5,  -77.5 - r() * 2],
+      "Rivers":         [50.0 + r() * 0.4,  -99.0 - r() * 2],
+      "Edson":          [53.4 + r() * 0.3,  -115.0 - r() * 2],
+      "Wainwright":     [52.8 + r() * 0.4,  -111.0 - r() * 2],
+      "Ruel":           [47.2 + r() * 0.3,  -81.5 - r() * 1],
+      "Montréal":       [45.5 + r() * 0.2,  -73.5 - r() * 0.5],
+      "Moncton":        [46.0 + r() * 0.3,  -64.8 - r() * 1],
+      "Bala":           [44.8 + r() * 0.4,  -79.5 - r() * 1],
+      "Prince George":  [53.6 + r() * 0.3,  -122.5 - r() * 0.5],
+      "MacMillan":      [44.2 + r() * 0.4,  -79.5 - r() * 1],
+    };
+    const [lat, lon] = subLatLon[t.subdivision] ?? [50.0, -97.0];
+
+    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    const depHour = Math.max(0, hour - 4 - Math.floor(r() * 4));
+    const departureTime = `${dateStr} ${String(depHour).padStart(2, "0")}:${String(Math.floor(r() * 60)).padStart(2, "0")}:00`;
+
+    const base: HistoricalTrainSnapshot = {
+      id: t.id,
+      symbol: t.symbol,
+      state,
+      subdivision: t.subdivision,
+      milepost: isInYard ? 0 : mp,
+      direction: t.direction,
+      speed: isInYard || isStopped ? 0 : speed,
+      speedLimit,
+      locos: t.locos,
+      cars: t.cars,
+      weight: t.weight,
+      length: t.length,
+      hasDPU: t.hasDPU,
+      ptcState,
+      tripOptimizerActive: ptcState === "ACTIVE" && r() > 0.4,
+      fuelSavedGallons: fuelSaved,
+      milesThisTrip,
+      milesToday: milesThisTrip,
+      crew: t.crew,
+      hosRemainingMin: hosRemaining,
+      lastDetectorMp: Math.max(0, mp - 4),
+      lastDetectorResult: detectorResult,
+      activeAlarms: alarms,
+      lat,
+      lon,
+      origin: t.origin,
+      destination: t.destination,
+      foreignCars: t.foreignCars,
+      departureTime,
+    };
+
+    if (isInYard) {
+      base.yardId = t.origin.replace(" Yard", "").toUpperCase().replace(" ", "_");
+      base.yardTrack = `T-${String(Math.floor(r() * 20 + 1)).padStart(2, "0")}`;
+    }
+    if (isStopped) {
+      base.stopReason = STOP_REASONS[Math.floor(r() * STOP_REASONS.length)];
+      base.stopDuration = Math.round(5 + r() * 55);
+    }
+
+    return base;
+  });
+}
+
+/**
+ * Get fleet snapshot for any date + hour combination.
+ * Falls back to the hardcoded May 14 snapshots for that specific date,
+ * and generates synthetic data for all other dates in the past 30 days.
+ */
+export function getFleetAtDateTime(date: Date, hour: number): HistoricalTrainSnapshot[] {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const isMay14 = y === 2026 && m === 5 && d === 14;
+
+  if (isMay14) {
+    // Use the hand-crafted May 14 snapshots
+    return getFleetAtTime(hour);
+  }
+
+  // Generate synthetic data for any other date
+  return generateSnapshotForDate(date, hour);
+}
+
+/** Returns true if the given date is within the available 30-day window */
+export function isDateInHistoricalWindow(date: Date): boolean {
+  const now = new Date(2026, 4, 14); // May 14, 2026 = "today"
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  return date >= thirtyDaysAgo && date <= yesterday;
+}
+
+/** The "today" reference date for the app (May 14, 2026) */
+export const APP_TODAY = new Date(2026, 4, 14); // month is 0-indexed

@@ -1,10 +1,13 @@
 import Layout from "@/components/Layout";
 import {
   FLEET_SNAPSHOT, YARDS, AIR_BRAKE_TESTS, CONSIST_EVENTS, LIFECYCLE_EVENTS, DAILY_SUMMARY,
-  HISTORICAL_FLEET_SNAPSHOTS, getFleetAtTime,
+  HISTORICAL_FLEET_SNAPSHOTS, getFleetAtTime, getFleetAtDateTime, isDateInHistoricalWindow, APP_TODAY,
   type TrainSnapshot, type TrainState, type AirBrakeTestResult, type LifecycleEventType,
   type HistoricalTrainSnapshot,
 } from "@/lib/fleetData";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 import { SWITCH_LISTS, type SwitchMoveStatus } from "@/lib/dispatchData";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
@@ -13,6 +16,7 @@ import {
   Gauge, Fuel, Navigation, Users, RefreshCw, Filter,
   Zap, Radio, Wrench, Info, Link2,
   Play, Pause, SkipBack, SkipForward, ChevronsLeft, ChevronsRight, History,
+  CalendarDays, ChevronDown as ChevronDownIcon,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -349,6 +353,13 @@ export default function FleetOps() {
   // ── Time-travel state ──────────────────────────────────────────────────────
   const [isLiveMode, setIsLiveMode] = useState(true);
   const [selectedHour, setSelectedHour] = useState<number>(12); // last historical point
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    // Default to yesterday (one day before APP_TODAY)
+    const d = new Date(APP_TODAY);
+    d.setDate(d.getDate() - 1);
+    return d;
+  });
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -376,8 +387,20 @@ export default function FleetOps() {
   // Current fleet data: live or historical
   const currentFleet: (TrainSnapshot | HistoricalTrainSnapshot)[] = useMemo(() => {
     if (isLiveMode) return FLEET_SNAPSHOT;
-    return getFleetAtTime(selectedHour);
-  }, [isLiveMode, selectedHour]);
+    return getFleetAtDateTime(selectedDate, selectedHour);
+  }, [isLiveMode, selectedDate, selectedHour]);
+
+  // Formatted date label for display
+  const selectedDateLabel = useMemo(() => {
+    const isToday = selectedDate.toDateString() === APP_TODAY.toDateString();
+    const isYesterday = (() => {
+      const y = new Date(APP_TODAY); y.setDate(y.getDate() - 1);
+      return selectedDate.toDateString() === y.toDateString();
+    })();
+    if (isToday) return "Today";
+    if (isYesterday) return "Yesterday";
+    return format(selectedDate, "MMM d, yyyy");
+  }, [selectedDate]);
 
   const filteredFleet = useMemo(() => {
     if (fleetFilter === "ALL") return currentFleet;
@@ -421,14 +444,15 @@ export default function FleetOps() {
           ) : (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30">
               <History size={11} className="text-amber-400"/>
-              <span className="text-[11px] text-amber-400 font-medium">Historical — {HIST_LABELS[selectedHour]} · May 14, 2026</span>
+              <span className="text-[11px] text-amber-400 font-medium">Historical — {HIST_LABELS[selectedHour]} · {selectedDateLabel}</span>
             </div>
           )}
         </div>
 
         {/* ─── Time-Travel Control Bar ─────────────────────────────────────────── */}
-        <div className="rounded border border-border bg-card p-3 flex items-center gap-4 flex-wrap">
-          {/* LIVE toggle */}
+        <div className="rounded border border-border bg-card p-3 flex items-center gap-3 flex-wrap">
+
+          {/* ── LIVE toggle ── */}
           <button
             onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-[11px] font-semibold transition-colors ${
@@ -444,7 +468,87 @@ export default function FleetOps() {
           {/* Divider */}
           <div className="h-5 w-px bg-border"/>
 
-          {/* Timeline scrubber — segmented time points */}
+          {/* ── Date Picker ── */}
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <button
+                onClick={() => { if (isLiveMode) { setIsLiveMode(false); setIsPlaying(false); } }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded border text-[11px] font-medium transition-colors ${
+                  !isLiveMode
+                    ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <CalendarDays size={12}/>
+                <span>{isLiveMode ? 'Select date…' : selectedDateLabel}</span>
+                <ChevronDownIcon size={10} className="opacity-60"/>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <div className="p-3 space-y-3">
+                {/* Quick presets */}
+                <div className="flex items-center gap-1.5 pb-2 border-b border-border">
+                  <span className="text-[10px] text-muted-foreground mr-1">Quick:</span>
+                  {[
+                    { label: "Yesterday",  days: 1 },
+                    { label: "2 days ago", days: 2 },
+                    { label: "Last week",  days: 7 },
+                    { label: "2 wks ago",  days: 14 },
+                    { label: "30 days ago",days: 30 },
+                  ].map(p => {
+                    const d = new Date(APP_TODAY);
+                    d.setDate(d.getDate() - p.days);
+                    const isSelected = !isLiveMode && selectedDate.toDateString() === d.toDateString();
+                    return (
+                      <button
+                        key={p.label}
+                        onClick={() => {
+                          setSelectedDate(d);
+                          setIsLiveMode(false);
+                          setIsPlaying(false);
+                          setCalendarOpen(false);
+                        }}
+                        className={`text-[10px] px-2 py-1 rounded border transition-colors ${
+                          isSelected
+                            ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                            : 'border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {/* Calendar */}
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(d) => {
+                    if (!d) return;
+                    if (!isDateInHistoricalWindow(d)) return; // block future/out-of-window
+                    setSelectedDate(d);
+                    setIsLiveMode(false);
+                    setIsPlaying(false);
+                    setCalendarOpen(false);
+                  }}
+                  disabled={(d) => !isDateInHistoricalWindow(d)}
+                  defaultMonth={(() => { const m = new Date(APP_TODAY); m.setDate(m.getDate() - 1); return m; })()}
+                  fromDate={(() => { const d = new Date(APP_TODAY); d.setDate(d.getDate() - 30); return d; })()}
+                  toDate={(() => { const d = new Date(APP_TODAY); d.setDate(d.getDate() - 1); return d; })()}
+                />
+                <div className="pt-1 border-t border-border">
+                  <p className="text-[10px] text-muted-foreground">
+                    Historical data available for the past 30 days.
+                  </p>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-border"/>
+
+          {/* ── Time-of-day scrubber ── */}
           <div className="flex items-center gap-1">
             {HIST_HOURS.map((hour, i) => (
               <button
@@ -466,81 +570,55 @@ export default function FleetOps() {
           {/* Divider */}
           <div className="h-5 w-px bg-border"/>
 
-          {/* Playback controls */}
+          {/* ── Playback controls ── */}
           <div className="flex items-center gap-1">
-            {/* Rewind to start */}
-            <button
-              title="Jump to 06:00"
-              onClick={() => { setIsLiveMode(false); setSelectedHour(6); setIsPlaying(false); }}
-              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
+            <button title="Jump to 06:00" onClick={() => { setIsLiveMode(false); setSelectedHour(6); setIsPlaying(false); }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <ChevronsLeft size={13}/>
             </button>
-            {/* Step back */}
-            <button
-              title="Step back"
-              onClick={() => {
-                if (isLiveMode) {
-                  setIsLiveMode(false);
-                  setSelectedHour(12);
-                } else {
-                  const idx = HIST_HOURS.indexOf(selectedHour as typeof HIST_HOURS[number]);
-                  if (idx > 0) setSelectedHour(HIST_HOURS[idx - 1]);
-                }
+            <button title="Step back" onClick={() => {
+                if (isLiveMode) { setIsLiveMode(false); setSelectedHour(12); }
+                else { const idx = HIST_HOURS.indexOf(selectedHour as typeof HIST_HOURS[number]); if (idx > 0) setSelectedHour(HIST_HOURS[idx - 1]); }
                 setIsPlaying(false);
               }}
-              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <SkipBack size={13}/>
             </button>
-            {/* Play / Pause */}
-            <button
-              title={isPlaying ? 'Pause' : 'Play'}
-              onClick={() => {
+            <button title={isPlaying ? 'Pause' : 'Play'} onClick={() => {
                 if (isLiveMode) { setIsLiveMode(false); setSelectedHour(6); }
                 setIsPlaying(p => !p);
               }}
               className={`p-1.5 rounded border transition-colors ${
-                isPlaying
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-              }`}
-            >
+                isPlaying ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                          : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}>
               {isPlaying ? <Pause size={13}/> : <Play size={13}/>}
             </button>
-            {/* Step forward */}
-            <button
-              title="Step forward"
-              onClick={() => {
+            <button title="Step forward" onClick={() => {
                 if (isLiveMode) return;
                 const idx = HIST_HOURS.indexOf(selectedHour as typeof HIST_HOURS[number]);
                 if (idx === HIST_HOURS.length - 1) { setIsLiveMode(true); }
                 else if (idx >= 0) setSelectedHour(HIST_HOURS[idx + 1]);
                 setIsPlaying(false);
               }}
-              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <SkipForward size={13}/>
             </button>
-            {/* Jump to live */}
-            <button
-              title="Jump to Live"
-              onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
-              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
+            <button title="Jump to Live" onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
               <ChevronsRight size={13}/>
             </button>
           </div>
 
-          {/* Current time label */}
+          {/* ── Status label ── */}
           <div className="ml-auto flex items-center gap-2">
             {!isLiveMode && (
               <span className="text-[10px] px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono">
-                HISTORICAL — {HIST_LABELS[selectedHour]} · May 14, 2026
+                {selectedDateLabel} · {HIST_LABELS[selectedHour]}
               </span>
             )}
             <span className="text-[10px] text-muted-foreground">
-              {isLiveMode ? `${currentFleet.length} trains (live)` : `${currentFleet.length} trains at ${HIST_LABELS[selectedHour]}`}
+              {isLiveMode ? `${currentFleet.length} trains (live)` : `${currentFleet.length} trains`}
             </span>
           </div>
         </div>
@@ -654,7 +732,7 @@ export default function FleetOps() {
               <div className="flex items-center gap-2 px-3 py-2 rounded border border-amber-500/30 bg-amber-500/5">
                 <History size={12} className="text-amber-400 flex-shrink-0"/>
                 <span className="text-[11px] text-amber-400 font-semibold">HISTORICAL VIEW</span>
-                <span className="text-[11px] text-muted-foreground">— Showing fleet state at {HIST_LABELS[selectedHour]} on May 14, 2026. Data is read-only.</span>
+                <span className="text-[11px] text-muted-foreground">— Showing fleet state at {HIST_LABELS[selectedHour]} on {selectedDateLabel}. Data is read-only.</span>
                 <button
                   onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
                   className="ml-auto text-[10px] px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
