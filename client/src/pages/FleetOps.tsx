@@ -1,15 +1,18 @@
 import Layout from "@/components/Layout";
 import {
   FLEET_SNAPSHOT, YARDS, AIR_BRAKE_TESTS, CONSIST_EVENTS, LIFECYCLE_EVENTS, DAILY_SUMMARY,
+  HISTORICAL_FLEET_SNAPSHOTS, getFleetAtTime,
   type TrainSnapshot, type TrainState, type AirBrakeTestResult, type LifecycleEventType,
+  type HistoricalTrainSnapshot,
 } from "@/lib/fleetData";
 import { SWITCH_LISTS, type SwitchMoveStatus } from "@/lib/dispatchData";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Train, MapPin, CheckCircle, XCircle, Clock, AlertTriangle,
   ChevronDown, ChevronUp, Activity, Package, ArrowRight,
   Gauge, Fuel, Navigation, Users, RefreshCw, Filter,
   Zap, Radio, Wrench, Info, Link2,
+  Play, Pause, SkipBack, SkipForward, ChevronsLeft, ChevronsRight, History,
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -319,10 +322,15 @@ function LifecycleEventRow({ ev }: { ev: typeof LIFECYCLE_EVENTS[0] }) {
   );
 }
 
+// ─── Historical Time Points ─────────────────────────────────────────────────
+
+const HIST_HOURS = [6, 8, 10, 12] as const;
+const HIST_LABELS: Record<number, string> = { 6: "06:00", 8: "08:00", 10: "10:00", 12: "12:00" };
+
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "fleet",      label: "Live Fleet",          icon: <Train size={13}/> },
+  { id: "fleet",      label: "Fleet",               icon: <Train size={13}/> },
   { id: "yards",      label: "Yard Operations",     icon: <MapPin size={13}/> },
   { id: "switchlist", label: "Switch Lists",        icon: <RefreshCw size={13}/> },
   { id: "abt",        label: "Air Brake Tests",     icon: <Gauge size={13}/> },
@@ -338,10 +346,43 @@ export default function FleetOps() {
   const [lifecycleFilter, setLifecycleFilter] = useState<string>("ALL");
   const [lifecycleSeverity, setLifecycleSeverity] = useState<string>("ALL");
 
+  // ── Time-travel state ──────────────────────────────────────────────────────
+  const [isLiveMode, setIsLiveMode] = useState(true);
+  const [selectedHour, setSelectedHour] = useState<number>(12); // last historical point
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playbackRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Playback: auto-advance through 6→8→10→12→LIVE every 3s
+  useEffect(() => {
+    if (isPlaying) {
+      playbackRef.current = setInterval(() => {
+        setSelectedHour(prev => {
+          const idx = HIST_HOURS.indexOf(prev as typeof HIST_HOURS[number]);
+          if (idx === -1 || idx === HIST_HOURS.length - 1) {
+            // reached end — switch to live
+            setIsPlaying(false);
+            setIsLiveMode(true);
+            return prev;
+          }
+          return HIST_HOURS[idx + 1];
+        });
+      }, 3000);
+    } else {
+      if (playbackRef.current) clearInterval(playbackRef.current);
+    }
+    return () => { if (playbackRef.current) clearInterval(playbackRef.current); };
+  }, [isPlaying]);
+
+  // Current fleet data: live or historical
+  const currentFleet: (TrainSnapshot | HistoricalTrainSnapshot)[] = useMemo(() => {
+    if (isLiveMode) return FLEET_SNAPSHOT;
+    return getFleetAtTime(selectedHour);
+  }, [isLiveMode, selectedHour]);
+
   const filteredFleet = useMemo(() => {
-    if (fleetFilter === "ALL") return FLEET_SNAPSHOT;
-    return FLEET_SNAPSHOT.filter(t => t.state === fleetFilter);
-  }, [fleetFilter]);
+    if (fleetFilter === "ALL") return currentFleet;
+    return currentFleet.filter(t => t.state === fleetFilter);
+  }, [fleetFilter, currentFleet]);
 
   const filteredLifecycle = useMemo(() => {
     return LIFECYCLE_EVENTS.filter(ev => {
@@ -353,14 +394,14 @@ export default function FleetOps() {
 
   const trainIds = Array.from(new Set(LIFECYCLE_EVENTS.map(e => e.trainId)));
 
-  // State counts
+  // State counts (from current fleet)
   const stateCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const t of FLEET_SNAPSHOT) {
+    for (const t of currentFleet) {
       counts[t.state] = (counts[t.state] || 0) + 1;
     }
     return counts;
-  }, []);
+  }, [currentFleet]);
 
   return (
     <Layout>
@@ -372,16 +413,142 @@ export default function FleetOps() {
             <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: 'Space Grotesk, sans-serif' }}>Fleet Operations</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Train lifecycle · Yard operations · Air brake tests · Consist changes · Event log</p>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
-            <span className="text-[11px] text-emerald-400 font-medium">Live</span>
+          {isLiveMode ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"/>
+              <span className="text-[11px] text-emerald-400 font-medium">Live</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-500/10 border border-amber-500/30">
+              <History size={11} className="text-amber-400"/>
+              <span className="text-[11px] text-amber-400 font-medium">Historical — {HIST_LABELS[selectedHour]} · May 14, 2026</span>
+            </div>
+          )}
+        </div>
+
+        {/* ─── Time-Travel Control Bar ─────────────────────────────────────────── */}
+        <div className="rounded border border-border bg-card p-3 flex items-center gap-4 flex-wrap">
+          {/* LIVE toggle */}
+          <button
+            onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-[11px] font-semibold transition-colors ${
+              isLiveMode
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                : 'bg-card border-border text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <div className={`w-1.5 h-1.5 rounded-full ${isLiveMode ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-600'}`}/>
+            LIVE
+          </button>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-border"/>
+
+          {/* Timeline scrubber — segmented time points */}
+          <div className="flex items-center gap-1">
+            {HIST_HOURS.map((hour, i) => (
+              <button
+                key={hour}
+                onClick={() => { setIsLiveMode(false); setSelectedHour(hour); setIsPlaying(false); }}
+                className={`px-3 py-1.5 text-[11px] font-medium border transition-colors ${
+                  i === 0 ? 'rounded-l' : i === HIST_HOURS.length - 1 ? 'rounded-r' : ''
+                } ${
+                  !isLiveMode && selectedHour === hour
+                    ? 'bg-amber-500/20 border-amber-500/40 text-amber-400'
+                    : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {HIST_LABELS[hour]}
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-border"/>
+
+          {/* Playback controls */}
+          <div className="flex items-center gap-1">
+            {/* Rewind to start */}
+            <button
+              title="Jump to 06:00"
+              onClick={() => { setIsLiveMode(false); setSelectedHour(6); setIsPlaying(false); }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <ChevronsLeft size={13}/>
+            </button>
+            {/* Step back */}
+            <button
+              title="Step back"
+              onClick={() => {
+                if (isLiveMode) {
+                  setIsLiveMode(false);
+                  setSelectedHour(12);
+                } else {
+                  const idx = HIST_HOURS.indexOf(selectedHour as typeof HIST_HOURS[number]);
+                  if (idx > 0) setSelectedHour(HIST_HOURS[idx - 1]);
+                }
+                setIsPlaying(false);
+              }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <SkipBack size={13}/>
+            </button>
+            {/* Play / Pause */}
+            <button
+              title={isPlaying ? 'Pause' : 'Play'}
+              onClick={() => {
+                if (isLiveMode) { setIsLiveMode(false); setSelectedHour(6); }
+                setIsPlaying(p => !p);
+              }}
+              className={`p-1.5 rounded border transition-colors ${
+                isPlaying
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+              }`}
+            >
+              {isPlaying ? <Pause size={13}/> : <Play size={13}/>}
+            </button>
+            {/* Step forward */}
+            <button
+              title="Step forward"
+              onClick={() => {
+                if (isLiveMode) return;
+                const idx = HIST_HOURS.indexOf(selectedHour as typeof HIST_HOURS[number]);
+                if (idx === HIST_HOURS.length - 1) { setIsLiveMode(true); }
+                else if (idx >= 0) setSelectedHour(HIST_HOURS[idx + 1]);
+                setIsPlaying(false);
+              }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <SkipForward size={13}/>
+            </button>
+            {/* Jump to live */}
+            <button
+              title="Jump to Live"
+              onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
+              className="p-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <ChevronsRight size={13}/>
+            </button>
+          </div>
+
+          {/* Current time label */}
+          <div className="ml-auto flex items-center gap-2">
+            {!isLiveMode && (
+              <span className="text-[10px] px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-mono">
+                HISTORICAL — {HIST_LABELS[selectedHour]} · May 14, 2026
+              </span>
+            )}
+            <span className="text-[10px] text-muted-foreground">
+              {isLiveMode ? `${currentFleet.length} trains (live)` : `${currentFleet.length} trains at ${HIST_LABELS[selectedHour]}`}
+            </span>
           </div>
         </div>
 
         {/* Summary KPIs */}
         <div className="grid grid-cols-7 gap-2">
           {[
-            { label: "Total Active Trains",   value: DAILY_SUMMARY.trainsActive,                      color: "text-foreground",   bg: "bg-card border-border" },
+            { label: "Total Active Trains",   value: isLiveMode ? DAILY_SUMMARY.trainsActive : currentFleet.length,                      color: "text-foreground",   bg: "bg-card border-border" },
             { label: "Trains Moving",          value: stateCounts["EN_ROUTE_MOVING"] || 0,             color: "text-emerald-400",  bg: "bg-emerald-500/10 border-emerald-500/30" },
             { label: "Trains Stopped",         value: stateCounts["EN_ROUTE_STOPPED"] || 0,            color: "text-amber-400",    bg: "bg-amber-500/10 border-amber-500/30" },
             { label: "In Yards",               value: (stateCounts["IN_YARD_PRE_DEPARTURE"]||0)+(stateCounts["IN_YARD_POST_ARRIVAL"]||0), color: "text-sky-400", bg: "bg-sky-500/10 border-sky-500/30" },
@@ -405,12 +572,12 @@ export default function FleetOps() {
           }));
 
           const ptcCounts: Record<string, number> = {};
-          FLEET_SNAPSHOT.forEach(t => { ptcCounts[t.ptcState] = (ptcCounts[t.ptcState] || 0) + 1; });
+          currentFleet.forEach(t => { ptcCounts[t.ptcState] = (ptcCounts[t.ptcState] || 0) + 1; });
           const ptcData = Object.entries(ptcCounts).map(([status, count]) => ({ status, count }));
           const ptcColors: Record<string, string> = { ACTIVE: '#10B981', SUPPRESSED: '#F59E0B', BYPASS: '#EF4444', INITIALIZING: '#38BDF8', NOT_EQUIPPED: '#64748b' };
 
           const subCounts: Record<string, number> = {};
-          FLEET_SNAPSHOT.forEach(t => { subCounts[t.subdivision] = (subCounts[t.subdivision] || 0) + 1; });
+          currentFleet.forEach(t => { subCounts[t.subdivision] = (subCounts[t.subdivision] || 0) + 1; });
           const subData = Object.entries(subCounts).map(([sub, count]) => ({ sub, count })).sort((a, b) => b.count - a.count).slice(0, 8);
 
           const tooltipStyle = {
@@ -479,9 +646,23 @@ export default function FleetOps() {
           ))}
         </div>
 
-        {/* ═══ TAB: LIVE FLEET ═══ */}
+        {/* ═══ TAB: FLEET (LIVE or HISTORICAL) ═══ */}
         {activeTab === "fleet" && (
           <div className="space-y-3">
+            {/* Historical mode banner */}
+            {!isLiveMode && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded border border-amber-500/30 bg-amber-500/5">
+                <History size={12} className="text-amber-400 flex-shrink-0"/>
+                <span className="text-[11px] text-amber-400 font-semibold">HISTORICAL VIEW</span>
+                <span className="text-[11px] text-muted-foreground">— Showing fleet state at {HIST_LABELS[selectedHour]} on May 14, 2026. Data is read-only.</span>
+                <button
+                  onClick={() => { setIsLiveMode(true); setIsPlaying(false); }}
+                  className="ml-auto text-[10px] px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                >
+                  Return to Live
+                </button>
+              </div>
+            )}
             {/* State filter */}
             <div className="flex items-center gap-2">
               <Filter size={12} className="text-muted-foreground"/>
@@ -508,7 +689,7 @@ export default function FleetOps() {
               ))}
             </div>
             <div className="space-y-2">
-              {filteredFleet.map(t => <TrainCard key={t.id} t={t}/>)}
+              {filteredFleet.map(t => <TrainCard key={t.id} t={t as TrainSnapshot}/>)}
             </div>
           </div>
         )}
