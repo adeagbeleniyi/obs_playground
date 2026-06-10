@@ -26,7 +26,59 @@ export interface WheelDefect {
 
 // ─── Position Parser ──────────────────────────────────────────────────────────
 
+// Pattern 1: strict — "Axle B2-Left", "Axle A1-Right"
 const AXLE_PATTERN = /Axle\s+(A1|A2|B1|B2)[- ](Left|Right)/gi;
+
+// Pattern 2: numbered — "axle 1", "axle 2", "axle 3", "axle 4"  (maps to A1,A2,B1,B2)
+const AXLE_NUM_PATTERN = /axle\s+([1-4])/gi;
+
+// Pattern 3: side-only — "left-side bearing", "right-side bearing", "Left wheel", "Right wheel"
+const SIDE_ONLY_PATTERN = /(left|right)[- ](?:side\s+)?(?:bearing|wheel)/gi;
+
+/** Map numbered axle (1–4) to axle ID */
+function numToAxle(n: string): AxleId {
+  return (["A1", "A2", "B1", "B2"] as AxleId[])[parseInt(n, 10) - 1] ?? "A1";
+}
+
+/** Normalise raw side string to Left | Right */
+function normSide(raw: string): WheelSide {
+  return raw.toLowerCase().startsWith("l") ? "Left" : "Right";
+}
+
+/**
+ * Try all patterns in priority order and return the first matched position.
+ * Returns null if no position can be inferred.
+ */
+function inferPosition(text: string): WheelPosition | null {
+  // Priority 1: strict Axle XX-Side
+  const strict = Array.from(text.matchAll(AXLE_PATTERN));
+  if (strict.length > 0) {
+    const m = strict[0];
+    return `${m[1].toUpperCase() as AxleId}-${normSide(m[2])}`;
+  }
+
+  // Priority 2: numbered axle + explicit side
+  const numMatch = Array.from(text.matchAll(AXLE_NUM_PATTERN));
+  if (numMatch.length > 0) {
+    const axle = numToAxle(numMatch[0][1]);
+    // look for a side word anywhere in the text
+    const sideMatch = text.match(/\b(left|right)\b/i);
+    const side: WheelSide = sideMatch ? normSide(sideMatch[1]) : "Left";
+    return `${axle}-${side}`;
+  }
+
+  // Priority 3: side-only (no axle number) — default to A1 or B1 depending on context
+  const sideOnly = Array.from(text.matchAll(SIDE_ONLY_PATTERN));
+  if (sideOnly.length > 0) {
+    const side = normSide(sideOnly[0][1]);
+    // Heuristic: if description mentions "rear" or "B-end" use B1, else A1
+    const isBEnd = /\b(rear|b[- ]?end|trailing)\b/i.test(text);
+    const axle: AxleId = isBEnd ? "B1" : "A1";
+    return `${axle}-${side}`;
+  }
+
+  return null;
+}
 
 /**
  * Extract wheel positions from free-text descriptions in defect flags
@@ -42,12 +94,14 @@ export function extractWheelDefects(
   for (const flag of defectFlags) {
     if (flag.resolved) continue;
     const text = `${flag.description} ${flag.type}`;
-    const matches = Array.from(text.matchAll(AXLE_PATTERN));
-    for (const m of matches) {
-      const axle = m[1].toUpperCase() as AxleId;
-      const side = (m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()) as WheelSide;
-      const pos: WheelPosition = `${axle}-${side}`;
 
+    // Try all strict matches first (one flag can have multiple axle positions)
+    const strictMatches = Array.from(text.matchAll(AXLE_PATTERN));
+    const positions: WheelPosition[] = strictMatches.length > 0
+      ? strictMatches.map(m => `${m[1].toUpperCase() as AxleId}-${normSide(m[2])}` as WheelPosition)
+      : [inferPosition(text)].filter(Boolean) as WheelPosition[];
+
+    for (const pos of positions) {
       const severity: DefectSeverity =
         flag.severity === "CRITICAL" ? "ALARM" :
         flag.severity === "WARNING"  ? "ALERT" : "INFO";
@@ -57,7 +111,6 @@ export function extractWheelDefects(
                          flag.type.includes("TADS") ? "TADS" :
                          flag.type.includes("DED") ? "DED" : "OTHER";
 
-      // Extract reading value from description
       const kipsMatch = flag.description.match(/(\d+)\s*kips/i);
       const tempMatch = flag.description.match(/(\d+)°[CF]/i);
       const ktMatch   = flag.description.match(/Kt[=:]\s*([\d.]+)/i);
@@ -77,12 +130,13 @@ export function extractWheelDefects(
   // Parse wayside readings (lower priority — only add if not already from defect flag)
   for (const r of waysideReadings) {
     if (r.status === "NORMAL") continue;
-      const matches = Array.from(r.reading.matchAll(AXLE_PATTERN));
-    for (const m of matches) {
-      const axle = m[1].toUpperCase() as AxleId;
-      const side = (m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()) as WheelSide;
-      const pos: WheelPosition = `${axle}-${side}`;
-      if (defects.has(pos)) continue; // defect flag takes priority
+    const strictMatches = Array.from(r.reading.matchAll(AXLE_PATTERN));
+    const positions: WheelPosition[] = strictMatches.length > 0
+      ? strictMatches.map(m => `${m[1].toUpperCase() as AxleId}-${normSide(m[2])}` as WheelPosition)
+      : [inferPosition(r.reading)].filter(Boolean) as WheelPosition[];
+
+    for (const pos of positions) {
+      if (defects.has(pos)) continue;
 
       const severity: DefectSeverity = r.status === "ALARM" ? "ALARM" : "ALERT";
       const defectType = r.detectorType === "WILD" ? "WILD" :

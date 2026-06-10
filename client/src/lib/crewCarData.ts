@@ -506,7 +506,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'AEI-RVR-001', detectorType: 'AEI', location: 'Symington Yard Exit', milepost: 1.0, subdivision: 'Rivers', timestamp: '2026-05-14 11:45', reading: 'Tag read confirmed — BNSF 584291', status: 'NORMAL', trainId: 'M30151-05' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0441', date: '2026-05-14', severity: 'WARNING', type: 'Hot Bearing', description: 'Right-side bearing reading 58°F above ambient at Brandon HBD. Approaching alert threshold. Monitoring required.', detectedBy: 'HBD-RVR-044', location: 'Brandon, MB — Rivers Sub MP 44.1', resolved: false },
+      { flagId: 'DEF-2026-0441', date: '2026-05-14', severity: 'WARNING', type: 'Hot Bearing', description: 'Axle A2-Right bearing reading 58°F above ambient at Brandon HBD. Approaching alert threshold. Monitoring required.', detectedBy: 'HBD-RVR-044', location: 'Brandon, MB — Rivers Sub MP 44.1', resolved: false },
     ],
   },
 
@@ -588,7 +588,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'HBD-KGS-100', detectorType: 'HBD', location: 'Belleville, ON', milepost: 100.4, subdivision: 'Kingston', timestamp: '2026-05-12 10:48', reading: 'All bearings normal', status: 'NORMAL', trainId: 'Q11350-04' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0401', date: '2026-05-12', severity: 'CRITICAL', type: 'Wheel Flat / High Impact', description: 'WILD alarm at Napanee — wheel impact 112 kips exceeds 100 kip alarm threshold. Car set out at MacMillan Yard for wheel inspection. Flat spot confirmed on axle 2 left wheel. Scheduled for wheel truing.', detectedBy: 'WILD-KGS-150', location: 'Napanee, ON — Kingston Sub MP 150.2', resolved: false, workOrderId: 'WO-2026-9102' },
+      { flagId: 'DEF-2026-0401', date: '2026-05-12', severity: 'CRITICAL', type: 'Wheel Flat / High Impact', description: 'WILD alarm at Napanee — wheel impact 112 kips exceeds 100 kip alarm threshold. Car set out at MacMillan Yard for wheel inspection. Flat spot confirmed on Axle A2-Left. Scheduled for wheel truing.', detectedBy: 'WILD-KGS-150', location: 'Napanee, ON — Kingston Sub MP 150.2', resolved: false, workOrderId: 'WO-2026-9102' },
     ],
   },
 
@@ -616,7 +616,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'AEI-EDS-001', detectorType: 'AEI', location: 'Walker Yard Exit', milepost: 1.0, subdivision: 'Edson', timestamp: '2026-05-14 04:12', reading: 'Tag read confirmed — NS 74412', status: 'NORMAL', trainId: 'L50251-05' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0455', date: '2026-05-14', severity: 'WARNING', type: 'Elevated Wheel Impact', description: 'WILD reading of 88 kips at Hinton — in ALERT range. Car to be inspected at next yard stop (MacMillan Yard). No set-out required at this time.', detectedBy: 'WILD-EDS-080', location: 'Hinton, AB — Edson Sub MP 80.2', resolved: false },
+      { flagId: 'DEF-2026-0455', date: '2026-05-14', severity: 'WARNING', type: 'Elevated Wheel Impact', description: 'WILD reading of 88 kips at Hinton — Axle B1-Right in ALERT range. Car to be inspected at next yard stop (MacMillan Yard). No set-out required at this time.', detectedBy: 'WILD-EDS-080', location: 'Hinton, AB — Edson Sub MP 80.2', resolved: false },
     ],
   },
 
@@ -907,7 +907,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'HBD-RVR-090', detectorType: 'HBD', location: 'Brandon, MB', milepost: 90.3, subdivision: 'Rivers', timestamp: '2026-05-11 16:00', reading: 'L-Bearing: 72°F above ambient — ALARM threshold exceeded', status: 'ALARM', trainId: 'M29950-03' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0488', date: '2026-05-11', severity: 'CRITICAL', type: 'Hot Bearing — ALARM', description: 'HBD ALARM at Brandon — left-side bearing 72°F above ambient, exceeds 60°F alarm threshold. Car set out at Symington Yard. Bearing replacement in progress.', detectedBy: 'HBD-RVR-090', location: 'Brandon, MB — Rivers Sub MP 90.3', resolved: false, workOrderId: 'WO-2026-9201' },
+      { flagId: 'DEF-2026-0488', date: '2026-05-11', severity: 'CRITICAL', type: 'Hot Bearing — ALARM', description: 'HBD ALARM at Brandon — Axle B2-Left bearing 72°F above ambient, exceeds 60°F alarm threshold. Car set out at Symington Yard. Bearing replacement in progress.', detectedBy: 'HBD-RVR-090', location: 'Brandon, MB — Rivers Sub MP 90.3', resolved: false, workOrderId: 'WO-2026-9201' },
     ],
   },
 
@@ -933,7 +933,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'HBD-EDS-112', detectorType: 'HBD', location: 'Edson, AB', milepost: 112.8, subdivision: 'Edson', timestamp: '2026-05-14 14:05', reading: 'All bearings normal', status: 'NORMAL', trainId: 'L50251-05' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0461', date: '2026-05-14', severity: 'WARNING', type: 'Elevated Wheel Impact', description: 'WILD reading 79 kips at Hinton — ALERT range. Monitor at next detector. Inspect at MacMillan Yard.', detectedBy: 'WILD-EDS-080', location: 'Hinton, AB — Edson Sub MP 80.2', resolved: false },
+      { flagId: 'DEF-2026-0461', date: '2026-05-14', severity: 'WARNING', type: 'Elevated Wheel Impact', description: 'WILD reading 79 kips at Hinton — Axle A1-Right in ALERT range. Monitor at next detector. Inspect at MacMillan Yard.', detectedBy: 'WILD-EDS-080', location: 'Hinton, AB — Edson Sub MP 80.2', resolved: false },
     ],
   },
 
@@ -986,7 +986,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'HBD-KGS-010', detectorType: 'HBD', location: 'Oshawa, ON', milepost: 10.2, subdivision: 'Kingston', timestamp: '2026-05-14 07:30', reading: 'Axle A1-Right: Kt=1.6, Ke=1.8 — elevated, monitoring.', status: 'NORMAL', trainId: 'Q11451-05' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0512', date: '2026-05-14', severity: 'CRITICAL', type: 'Hot Bearing — WM51 K-value Alarm', description: 'AAR S-6001 §4.1.1 WM51 qualifying indication at Belleville HBD: Kt=4.8 (>3.5), Ke=3.2 (>2), bearing 118°F above ambient — 62°F hotter than next hottest bearing on equipment. Mandatory set-out executed. Car pulled from Q11451-05 at Kingston. Bearing replacement ordered.', detectedBy: 'HBD-KGS-100', location: 'Belleville, ON — Kingston Sub MP 100.4', resolved: false, workOrderId: 'WO-2026-9310' },
+      { flagId: 'DEF-2026-0512', date: '2026-05-14', severity: 'CRITICAL', type: 'Hot Bearing — WM51 K-value Alarm', description: 'AAR S-6001 §4.1.1 WM51 qualifying indication at Belleville HBD: Axle A2-Right Kt=4.8 (>3.5), Ke=3.2 (>2), bearing 118°F above ambient — 62°F hotter than next hottest bearing on equipment. Mandatory set-out executed. Car pulled from Q11451-05 at Kingston. Bearing replacement ordered.', detectedBy: 'HBD-KGS-100', location: 'Belleville, ON — Kingston Sub MP 100.4', resolved: false, workOrderId: 'WO-2026-9310' },
     ],
   },
 
@@ -1235,7 +1235,7 @@ export const carDatabase: CarRecord[] = [
       { detectorId: 'AEI-KGS-100', detectorType: 'AEI', location: 'Belleville, ON', milepost: 100.4, subdivision: 'Kingston', timestamp: '2026-05-14 12:58', reading: 'Tag read confirmed — CN 334812', status: 'NORMAL', trainId: 'Q11451-05' },
     ],
     defectFlags: [
-      { flagId: 'DEF-2026-0601', date: '2026-05-14', severity: 'WARNING', type: 'Overweight — WIM Axle Load Violation', description: 'WIM alert at Cobourg (Kingston Sub MP 50.1): Axle 3 load 36.8 tons exceeds 33-ton single-axle limit. Gross weight 286,000 lbs. Car owner (CN) notified. Car to be weighed and adjusted at Taschereau Yard.', detectedBy: 'WIM-KGS-050', location: 'Cobourg, ON — Kingston Sub MP 50.1', resolved: false },
+      { flagId: 'DEF-2026-0601', date: '2026-05-14', severity: 'WARNING', type: 'Overweight — WIM Axle Load Violation', description: 'WIM alert at Cobourg (Kingston Sub MP 50.1): Axle B1-Left load 36.8 tons exceeds 33-ton single-axle limit. Gross weight 286,000 lbs. Car owner (CN) notified. Car to be weighed and adjusted at Taschereau Yard.', detectedBy: 'WIM-KGS-050', location: 'Cobourg, ON — Kingston Sub MP 50.1', resolved: false },
     ],
   },
 ];
