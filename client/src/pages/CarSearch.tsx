@@ -1,4 +1,5 @@
 import Layout from '@/components/Layout';
+import WheelSchematic, { extractWheelDefects } from '@/components/WheelSchematic';
 import { carDatabase, type CarRecord, type WaysideReading, type DefectFlag } from '@/lib/crewCarData';
 import { getIncidentsForCar } from '@/lib/waysideIncidents';
 import { useEffect, useState } from 'react';
@@ -212,6 +213,7 @@ function CarDetail({ car }: { car: CarRecord }) {
   const [tab, setTab] = useState<'consist' | 'wayside' | 'defects'>('consist');
   const openDefects = car.defectFlags.filter(d => !d.resolved).length;
   const alarmReadings = car.waysideReadings.filter(r => r.status !== 'NORMAL').length;
+  const wheelDefects = extractWheelDefects(car.defectFlags, car.waysideReadings);
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -279,6 +281,19 @@ function CarDetail({ car }: { car: CarRecord }) {
             )}
           </div>
         )}
+      </div>
+
+      {/* Wheel Position Diagram */}
+      <div className="px-5 pt-4 pb-3 border-b border-border">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Wheel Position Diagram</span>
+          {wheelDefects.length > 0 && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/30 text-red-400">
+              {wheelDefects.length} DEFECT{wheelDefects.length > 1 ? 'S' : ''} DETECTED
+            </span>
+          )}
+        </div>
+        <WheelSchematic defects={wheelDefects} />
       </div>
 
       {/* Tabs */}

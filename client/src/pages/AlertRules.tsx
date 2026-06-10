@@ -6,7 +6,6 @@ import {
   GitBranch, Layers,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -407,11 +406,9 @@ function NewAlertRuleForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AlertRules() {
-  const { user, isAuthenticated, loading } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = true; // auth removed — app is publicly accessible
   const [showForm, setShowForm] = useState(false);
-
-  const listQuery = trpc.alertRules.listAll.useQuery(undefined, { enabled: isAuthenticated });
+  const listQuery = trpc.alertRules.listAll.useQuery(undefined);
   const utils = trpc.useUtils();
 
   const toggleMutation = trpc.alertRules.toggle.useMutation({ onSuccess: () => utils.alertRules.listAll.invalidate() });
@@ -433,7 +430,6 @@ export default function AlertRules() {
     deleteMutation.mutate({ id });
   }, [deleteMutation]);
 
-  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-muted-foreground" size={24} /></div>;
 
   return (
     <Layout>

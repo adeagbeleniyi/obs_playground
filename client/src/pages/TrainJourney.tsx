@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import Layout from "@/components/Layout";
+import WheelSchematic, { extractWheelDefectsFromRegistry } from "@/components/WheelSchematic";
 import { TRAINS, SUBDIVISIONS, type TrainRecord, type CarDetail, type WheelReading, type DetectorReading, type Health } from "@/lib/journeyData";
 import { getCarRecord, RAILROAD_LABELS, RAILROAD_COLORS, type CarRecord } from "@/lib/carRegistry";
 import {
@@ -216,7 +217,28 @@ function CarCard({ car }: { car: CarDetail }) {
             ))}
           </div>
 
-          {detailTab === "wheels" && <WheelGrid wheels={car.wheels} />}
+          {detailTab === "wheels" && (
+            <div>
+              {/* 2D Wheel Position Schematic */}
+              {carRecord && (() => {
+                const wheelDefects = extractWheelDefectsFromRegistry(carRecord.detectorHistory);
+                return (
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Wheel Position Diagram</span>
+                      {wheelDefects.length > 0 && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-red-500/15 border border-red-500/30 text-red-400">
+                          {wheelDefects.length} DEFECT{wheelDefects.length > 1 ? 'S' : ''}
+                        </span>
+                      )}
+                    </div>
+                    <WheelSchematic defects={wheelDefects} />
+                  </div>
+                );
+              })()}
+              <WheelGrid wheels={car.wheels} />
+            </div>
+          )}
           {detailTab === "detectors" && car.detectorReadings && car.detectorReadings.length > 0 && (
             <DetectorPanel readings={car.detectorReadings} />
           )}
@@ -441,8 +463,20 @@ function LocoDetailCard({ loco }: { loco: LocomotiveDetail }) {
 }
 
 // ─── Consist Tab ──────────────────────────────────────────────────────────────
+const CARS_PER_PAGE = 20;
+const STRIP_CAR_LIMIT = 60;
+
 function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string; legacyConsist: CarDetail[] }) {
   const [carTab, setCarTab] = useState<"locos" | "cars">("locos");
+  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
+  const [selectedLocoId, setSelectedLocoId] = useState<string | null>(null);
+  const [carPage, setCarPage] = useState(0);
+  const [defectsOnly, setDefectsOnly] = useState(false);
+  const selectedCarRef = React.useRef<HTMLDivElement | null>(null);
+  const stripRef = React.useRef<HTMLDivElement | null>(null);
+  // Map of carId → strip block index ref for scroll-sync
+  const stripBlockRefs = React.useRef<Map<string, HTMLDivElement>>(new Map());
+
   // Map journeyData train IDs (e.g. "CN 3864") to fleet IDs (e.g. "CN-Q11451-05")
   const fleetTrain = FLEET_SNAPSHOT.find(t =>
     t.locos.some(l => l === trainJourneyId) ||
@@ -450,14 +484,53 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
     t.symbol === trainJourneyId
   );
   const locos = fleetTrain ? getLocosForTrain(fleetTrain.id) : [];
-  const cars = fleetTrain ? getCarsForTrain(fleetTrain.id) : [];
+  const cars  = fleetTrain ? getCarsForTrain(fleetTrain.id) : [];
 
-  // Consist visual strip
-  const allUnits = [
-    ...locos.filter(l => l.position === "LEAD" || l.position === "TRAIL").sort((a,b) => a.positionInConsist - b.positionInConsist),
-    ...Array.from({ length: Math.min(fleetTrain?.cars ?? legacyConsist.filter(c => c.type === "car").length, 20) }, (_, i) => ({ type: "car" as const, num: i + 1 })),
-    ...locos.filter(l => l.position.startsWith("DPU")),
-  ];
+  // Defects-only filter
+  const defectiveCars = React.useMemo(() => cars.filter(c => c.wheelDefectAxle || c.lastDetectorResult === "ALARM" || c.lastDetectorResult === "WARNING" || c.lastABTResult === "FAIL"), [cars]);
+  const displayCars   = defectsOnly ? defectiveCars : cars;
+
+  // Pagination over displayCars
+  const totalPages = Math.ceil(displayCars.length / CARS_PER_PAGE);
+  const pagedCars  = displayCars.slice(carPage * CARS_PER_PAGE, (carPage + 1) * CARS_PER_PAGE);
+
+  const totalCars  = fleetTrain?.cars ?? legacyConsist.filter(c => c.type === "car").length;
+  const stripCars  = Math.min(totalCars, STRIP_CAR_LIMIT);
+  const frontLocos = locos.filter(l => l.position !== "DPU_REAR" && l.position !== "DPU_MID");
+  const dpuLocos   = locos.filter(l => l.position.startsWith("DPU"));
+
+  // ── Strip → List: click a strip block to jump to that car in the list ──────
+  const handleStripCarClick = (carIndex: number) => {
+    const car = cars[carIndex];
+    if (!car) return;
+    setCarTab("cars");
+    setDefectsOnly(false); // show all cars so the target is visible
+    const page = Math.floor(carIndex / CARS_PER_PAGE);
+    setCarPage(page);
+    setSelectedCarId(car.carId);
+    setSelectedLocoId(null);
+    setTimeout(() => selectedCarRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 80);
+  };
+
+  // ── Strip → List: click a loco block to jump to that loco in the locos tab ─
+  const handleStripLocoClick = (roadNumber: string) => {
+    setCarTab("locos");
+    setSelectedLocoId(roadNumber);
+    setSelectedCarId(null);
+    setTimeout(() => {
+      const el = document.getElementById(`loco-card-${roadNumber.replace(" ", "-")}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 80);
+  };
+
+  // ── List → Strip: when selected car changes, scroll the strip block into view
+  React.useEffect(() => {
+    if (!selectedCarId) return;
+    const el = stripBlockRefs.current.get(selectedCarId);
+    if (el && stripRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [selectedCarId]);
 
   return (
     <div>
@@ -482,32 +555,106 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
       </div>
 
       {/* Visual consist strip */}
-      <div className="flex items-center gap-0.5 mb-5 overflow-x-auto pb-2 px-1">
-        {locos.filter(l => l.position !== "DPU_REAR" && l.position !== "DPU_MID").map(l => (
-          <div key={l.roadNumber} className="flex flex-col items-center flex-shrink-0">
-            <div className={`w-16 h-9 rounded border-2 flex flex-col items-center justify-center text-[8px] font-mono ${
-              l.position === "LEAD" ? "border-blue-500/70 bg-blue-500/15" : "border-slate-500/50 bg-slate-800/60"
-            }`}>
-              <span className={l.position === "LEAD" ? "text-blue-300" : "text-slate-400"}>{l.position === "LEAD" ? "LEAD" : "TRAIL"}</span>
-              <span className="text-slate-500 text-[7px]">{l.roadNumber.split(" ")[1]}</span>
+      <div ref={stripRef} className="flex items-end gap-0.5 mb-3 overflow-x-auto pb-2 px-1">
+        {/* Front locos — clickable */}
+        {frontLocos.map(l => {
+          const isLocoSelected = l.roadNumber === selectedLocoId;
+          return (
+            <div
+              key={l.roadNumber}
+              title={`${l.roadNumber} · ${l.position} · Click to view details`}
+              onClick={() => handleStripLocoClick(l.roadNumber)}
+              className="flex flex-col items-center flex-shrink-0 cursor-pointer"
+            >
+              <div className={`w-16 h-9 rounded border-2 flex flex-col items-center justify-center text-[8px] font-mono transition-all ${
+                isLocoSelected ? "border-sky-400 bg-sky-400/20 ring-1 ring-sky-400/30" :
+                l.position === "LEAD" ? "border-blue-500/70 bg-blue-500/15 hover:border-blue-400" :
+                "border-slate-500/50 bg-slate-800/60 hover:border-slate-400"
+              }`}>
+                <span className={isLocoSelected ? "text-sky-300" : l.position === "LEAD" ? "text-blue-300" : "text-slate-400"}>{l.position === "LEAD" ? "LEAD" : "TRAIL"}</span>
+                <span className="text-slate-500 text-[7px]">{l.roadNumber.split(" ")[1]}</span>
+              </div>
             </div>
-          </div>
-        ))}
-        {/* Car blocks (show up to 30 representative blocks) */}
-        {Array.from({ length: Math.min(fleetTrain?.cars ?? 10, 30) }).map((_, i) => (
-          <div key={`car-${i}`} className="w-5 h-9 rounded border border-slate-700/40 bg-slate-800/40 flex-shrink-0" />
-        ))}
-        {(fleetTrain?.cars ?? 0) > 30 && (
-          <div className="flex-shrink-0 text-[8px] text-muted-foreground px-1">+{(fleetTrain?.cars ?? 0) - 30} more</div>
+          );
+        })}
+
+        {/* Car blocks — clickable, with mini defect dot and position badge every 10th */}
+        {Array.from({ length: stripCars }).map((_, i) => {
+          const car        = cars[i];
+          const isSelected = car && car.carId === selectedCarId;
+          const hasAlarm   = car?.wheelDefectSeverity === "ALARM"  || car?.lastDetectorResult === "ALARM";
+          const hasWarning = car?.wheelDefectSeverity === "WARNING" || car?.lastDetectorResult === "WARNING";
+          const hasHazmat  = car?.hazmat;
+          const pos        = i + 1; // 1-based position in strip
+          const showBadge  = pos % 10 === 0;
+          return (
+            <div
+              key={`car-${i}`}
+              ref={el => { if (car && el) stripBlockRefs.current.set(car.carId, el); }}
+              title={car ? `${car.carId} · Pos #${car.positionInConsist}${car.wheelDefectAxle ? ` · ⚠ ${car.wheelDefectType} ${car.wheelDefectAxle}` : ""}` : `Car ${i + 1}`}
+              onClick={() => car && handleStripCarClick(i)}
+              className={`relative w-5 flex-shrink-0 flex flex-col items-center justify-end pb-0.5 transition-all ${
+                car ? "cursor-pointer" : "cursor-default"
+              }`}
+              style={{ height: showBadge ? "52px" : "36px" }}
+            >
+              {/* Position badge above every 10th block */}
+              {showBadge && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 text-[7px] text-muted-foreground font-mono leading-none mb-0.5" style={{ top: 0 }}>
+                  {pos}
+                </div>
+              )}
+              {/* Car block */}
+              <div className={`w-full rounded flex flex-col items-center justify-end pb-0.5 transition-all ${
+                isSelected   ? "border-2 border-sky-400 bg-sky-400/20" :
+                hasAlarm     ? "border border-red-500/60 bg-red-500/15" :
+                hasWarning   ? "border border-amber-500/50 bg-amber-500/12" :
+                hasHazmat    ? "border border-orange-500/40 bg-orange-500/10" :
+                               "border border-slate-700/40 bg-slate-800/40 hover:border-slate-500/60 hover:bg-slate-700/40"
+              }`} style={{ height: "36px" }}>
+                {/* Mini wheel defect dot */}
+                {(hasAlarm || hasWarning) && (
+                  <div className={`w-1.5 h-1.5 rounded-full mb-0.5 ${
+                    hasAlarm ? "bg-red-400" : "bg-amber-400"
+                  }`} />
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {totalCars > STRIP_CAR_LIMIT && (
+          <div className="flex-shrink-0 text-[8px] text-muted-foreground px-1 self-end mb-1">+{totalCars - STRIP_CAR_LIMIT} more</div>
         )}
-        {locos.filter(l => l.position.startsWith("DPU")).map(l => (
-          <div key={l.roadNumber} className="flex flex-col items-center flex-shrink-0">
-            <div className="w-16 h-9 rounded border-2 border-purple-500/60 bg-purple-500/10 flex flex-col items-center justify-center text-[8px] font-mono">
-              <span className="text-purple-300">DPU</span>
-              <span className="text-slate-500 text-[7px]">{l.roadNumber.split(" ")[1]}</span>
+
+        {/* DPU locos — clickable */}
+        {dpuLocos.map(l => {
+          const isLocoSelected = l.roadNumber === selectedLocoId;
+          return (
+            <div
+              key={l.roadNumber}
+              title={`${l.roadNumber} · DPU · Click to view details`}
+              onClick={() => handleStripLocoClick(l.roadNumber)}
+              className="flex flex-col items-center flex-shrink-0 cursor-pointer self-end"
+            >
+              <div className={`w-16 h-9 rounded border-2 flex flex-col items-center justify-center text-[8px] font-mono transition-all ${
+                isLocoSelected ? "border-sky-400 bg-sky-400/20 ring-1 ring-sky-400/30" : "border-purple-500/60 bg-purple-500/10 hover:border-purple-400"
+              }`}>
+                <span className={isLocoSelected ? "text-sky-300" : "text-purple-300"}>DPU</span>
+                <span className="text-slate-500 text-[7px]">{l.roadNumber.split(" ")[1]}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
+      </div>
+
+      {/* Strip legend */}
+      <div className="flex items-center gap-3 mb-4 text-[9px] text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block" /> ALARM</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block" /> WARNING</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-orange-500/30 border border-orange-500/40 inline-block" /> HAZMAT</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-sky-400/20 border-2 border-sky-400 inline-block" /> SELECTED</span>
+        <span className="ml-auto italic">Click any block to jump to its record</span>
       </div>
 
       {/* Sub-tabs: Locomotives / Cars */}
@@ -526,9 +673,18 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
       {carTab === "locos" && (
         <div>
           {locos.length > 0 ? (
-            locos.map(l => <LocoDetailCard key={l.roadNumber + l.positionInConsist} loco={l} />)
+            locos.map(l => (
+              <div
+                key={l.roadNumber + l.positionInConsist}
+                id={`loco-card-${l.roadNumber.replace(" ", "-")}`}
+                className={`rounded transition-all ${
+                  l.roadNumber === selectedLocoId ? "ring-2 ring-sky-400/60 ring-offset-1 ring-offset-background" : ""
+                }`}
+              >
+                <LocoDetailCard loco={l} />
+              </div>
+            ))
           ) : (
-            // Fallback to legacy consist for locos
             <div>
               <div className="text-[10px] text-muted-foreground mb-2">Showing legacy consist data — detailed component telemetry not available for this train.</div>
               {legacyConsist.filter(c => c.type !== "car").map(car => <CarCard key={car.id} car={car} />)}
@@ -542,14 +698,69 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
         <div>
           {cars.length > 0 ? (
             <div className="space-y-1.5">
-              <div className="text-[10px] text-muted-foreground mb-2 uppercase tracking-widest">Showing {cars.length} of {fleetTrain?.cars ?? cars.length} cars with detailed records</div>
-              {cars.map(car => (
-                <div key={car.carId} className={`rounded border px-3 py-2 text-[11px] ${
-                  car.lastDetectorResult === "ALARM" ? "border-red-500/30 bg-red-500/8" :
-                  car.lastDetectorResult === "WARNING" ? "border-amber-500/30 bg-amber-500/8" :
-                  car.lastABTResult === "FAIL" ? "border-red-500/20 bg-red-500/5" :
-                  "border-border bg-muted/20"
-                }`}>
+              {/* Header row: count + defects-only toggle + pagination */}
+              <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                    {defectsOnly
+                      ? `${defectiveCars.length} defective car${defectiveCars.length !== 1 ? "s" : ""} of ${cars.length}`
+                      : `Showing ${pagedCars.length > 0 ? carPage * CARS_PER_PAGE + 1 : 0}–${Math.min((carPage + 1) * CARS_PER_PAGE, displayCars.length)} of ${displayCars.length} cars`
+                    }
+                    {fleetTrain && cars.length < fleetTrain.cars ? ` (${fleetTrain.cars - cars.length} without records)` : ""}
+                  </div>
+                  {/* Defects-only toggle */}
+                  <button
+                    onClick={() => { setDefectsOnly(v => !v); setCarPage(0); setSelectedCarId(null); }}
+                    className={`flex items-center gap-1 px-2 py-0.5 text-[9px] rounded border transition-colors ${
+                      defectsOnly
+                        ? "border-red-500/50 bg-red-500/15 text-red-400"
+                        : "border-border bg-muted/30 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <AlertTriangle size={9} />
+                    {defectsOnly ? `Defects only (${defectiveCars.length})` : `Show defects only`}
+                  </button>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      disabled={carPage === 0}
+                      onClick={() => setCarPage(p => Math.max(0, p - 1))}
+                      className="px-2 py-0.5 text-[10px] rounded border border-border bg-muted/30 text-muted-foreground disabled:opacity-30 hover:text-foreground"
+                    >← Prev</button>
+                    <span className="text-[10px] text-muted-foreground px-1">{carPage + 1} / {totalPages}</span>
+                    <button
+                      disabled={carPage >= totalPages - 1}
+                      onClick={() => setCarPage(p => Math.min(totalPages - 1, p + 1))}
+                      className="px-2 py-0.5 text-[10px] rounded border border-border bg-muted/30 text-muted-foreground disabled:opacity-30 hover:text-foreground"
+                    >Next →</button>
+                  </div>
+                )}
+              </div>
+
+              {pagedCars.map(car => (
+                <div
+                  key={car.carId}
+                  ref={car.carId === selectedCarId ? selectedCarRef : null}
+                  onClick={() => {
+                    const newId = selectedCarId === car.carId ? null : car.carId;
+                    setSelectedCarId(newId);
+                    setSelectedLocoId(null);
+                    // Sync strip: scroll the corresponding block into view
+                    if (newId) {
+                      const el = stripBlockRefs.current.get(newId);
+                      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                    }
+                  }}
+                  className={`rounded border px-3 py-2 text-[11px] cursor-pointer transition-all ${
+                    car.carId === selectedCarId
+                      ? "border-sky-400/60 bg-sky-400/10 ring-1 ring-sky-400/30"
+                      : car.lastDetectorResult === "ALARM" ? "border-red-500/30 bg-red-500/8 hover:bg-red-500/12" :
+                        car.lastDetectorResult === "WARNING" ? "border-amber-500/30 bg-amber-500/8 hover:bg-amber-500/12" :
+                        car.lastABTResult === "FAIL" ? "border-red-500/20 bg-red-500/5 hover:bg-red-500/8" :
+                        "border-border bg-muted/20 hover:bg-muted/40"
+                  }`}
+                >
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="font-mono font-bold text-foreground">{car.carId}</span>
                     <span className="text-[10px] text-muted-foreground">{car.carType.replace(/_/g, " ")}</span>
@@ -557,6 +768,11 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
                     <span className={`text-[9px] px-1.5 py-0.5 rounded border ${
                       car.loadStatus === "LOADED" ? "border-sky-500/30 bg-sky-500/10 text-sky-400" : "border-slate-600/30 bg-slate-800/40 text-slate-500"
                     }`}>{car.loadStatus}{car.commodity ? ` — ${car.commodity}` : ""}</span>
+                    {car.wheelDefectAxle && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded border font-mono ${
+                        car.wheelDefectSeverity === "ALARM" ? "border-red-500/50 bg-red-500/15 text-red-400" : "border-amber-500/40 bg-amber-500/12 text-amber-400"
+                      }`}>⚠ {car.wheelDefectType} {car.wheelDefectAxle}</span>
+                    )}
                     <span className="text-[10px] text-muted-foreground ml-auto">Pos #{car.positionInConsist}</span>
                   </div>
                   <div className="flex items-center gap-4 mt-1.5 text-[10px] text-muted-foreground flex-wrap">
@@ -572,8 +788,50 @@ function ConsistTab({ trainJourneyId, legacyConsist }: { trainJourneyId: string;
                       <AlertTriangle size={10} className="mt-0.5 flex-shrink-0" />{car.notes}
                     </div>
                   )}
+                  {/* Inline wheel schematic when car is selected and has a defect */}
+                  {car.carId === selectedCarId && car.wheelDefectAxle && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <WheelSchematic
+                        defects={[{
+                          position: car.wheelDefectAxle as import("@/components/WheelSchematic").WheelPosition,
+                          severity: (car.wheelDefectSeverity === "ALARM" ? "ALARM" : "ALERT") as import("@/components/WheelSchematic").DefectSeverity,
+                          label: `${car.wheelDefectType ?? "WILD"} — ${car.wheelDefectAxle}`,
+                          detail: car.notes ?? `${car.wheelDefectType} defect on ${car.wheelDefectAxle}`,
+                          defectType: (car.wheelDefectType ?? "WILD") as import("@/components/WheelSchematic").WheelDefect["defectType"],
+                        }]}
+                        className="max-w-sm"
+                      />
+                    </div>
+                  )}
                 </div>
               ))}
+
+              {/* Bottom pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    disabled={carPage === 0}
+                    onClick={() => { setCarPage(p => Math.max(0, p - 1)); }}
+                    className="px-3 py-1 text-[10px] rounded border border-border bg-muted/30 text-muted-foreground disabled:opacity-30 hover:text-foreground"
+                  >← Previous</button>
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }).map((_, pi) => (
+                      <button
+                        key={pi}
+                        onClick={() => setCarPage(pi)}
+                        className={`w-6 h-6 text-[9px] rounded border transition-colors ${
+                          pi === carPage ? "border-[#D22630]/50 bg-[#D22630]/20 text-foreground" : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
+                        }`}
+                      >{pi + 1}</button>
+                    ))}
+                  </div>
+                  <button
+                    disabled={carPage >= totalPages - 1}
+                    onClick={() => { setCarPage(p => Math.min(totalPages - 1, p + 1)); }}
+                    className="px-3 py-1 text-[10px] rounded border border-border bg-muted/30 text-muted-foreground disabled:opacity-30 hover:text-foreground"
+                  >Next →</button>
+                </div>
+              )}
             </div>
           ) : (
             // Fallback to legacy consist cars

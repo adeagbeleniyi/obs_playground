@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { evaluateRule, lastMatchedAt, type MatchResult } from "@/lib/ruleEvaluator";
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -536,10 +535,8 @@ function NewWatchRuleForm({ onClose, onSaved }: { onClose: () => void; onSaved: 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function WatchRules() {
-  const { isAuthenticated, loading } = useAuth();
   const [showForm, setShowForm] = useState(false);
-
-  const listQuery = trpc.watchRules.list.useQuery(undefined, { enabled: isAuthenticated });
+  const listQuery = trpc.watchRules.list.useQuery(undefined);
   const utils = trpc.useUtils();
 
   const toggleMutation = trpc.watchRules.toggle.useMutation({ onSuccess: () => utils.watchRules.list.invalidate() });
@@ -566,7 +563,6 @@ export default function WatchRules() {
     deleteMutation.mutate({ id });
   }, [deleteMutation]);
 
-  if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-muted-foreground" size={24} /></div>;
 
   return (
     <Layout>
